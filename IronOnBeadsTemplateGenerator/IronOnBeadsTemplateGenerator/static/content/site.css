@@ -97,7 +97,6 @@ input[type="checkbox"].input-validation-error {
     max-height: 400px;
     border: 2px solid #ddd;
     border-radius: 5px;
-    margin-bottom: 20px;
 }
 
 .mt-3 {

@@ -41,6 +41,7 @@ SERVER_PORT=5678</PythonDebugWebServerCommandEnvironment>
   <ItemGroup>
     <Folder Include="IronOnBeadsTemplateGenerator\" />
     <Folder Include="IronOnBeadsTemplateGenerator\domain\" />
+    <Folder Include="IronOnBeadsTemplateGenerator\application\" />
     <Folder Include="IronOnBeadsTemplateGenerator\presentation\" />
     <Folder Include="IronOnBeadsTemplateGenerator\static\" />
     <Folder Include="IronOnBeadsTemplateGenerator\static\content\" />
