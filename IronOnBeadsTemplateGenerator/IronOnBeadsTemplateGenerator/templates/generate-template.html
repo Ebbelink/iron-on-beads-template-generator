@@ -1,0 +1,159 @@
+{% extends "layout.html" %}
+
+{% block content %}
+
+<div class="jumbotron">
+  <h1>Flask</h1>
+  <p class="lead">Flask is a free web framework for building great Web sites and Web applications using HTML, CSS and JavaScript.</p>
+  <p><a href="http://flask.pocoo.org/" class="btn btn-primary btn-large">Learn more &raquo;</a></p>
+</div>
+
+<div class="row">
+  <div class="col-md-12">
+    <h2>Getting started</h2>
+    <p>
+      Flask gives you a powerful, patterns-based way to build dynamic websites that
+      enables a clean separation of concerns and gives you full control over markup
+      for enjoyable, agile development.
+    </p>
+    <p><a class="btn btn-default" href="http://flask.pocoo.org/docs/">Learn more &raquo;</a></p>
+  </div>
+  <div class="col-md-6 ">
+    <h3>Upload</h3>
+    <div id="dropZone" class="drop-zone">
+      <div class="drop-zone-text">
+        <i class="glyphicon glyphicon-cloud-upload"></i>
+        <p>Drag & Drop your image here</p>
+        <p>or</p>
+        <label for="fileInput" class="btn btn-primary">Browse Files</label>
+        <input type="file" id="fileInput" accept="image/*" style="display: none;">
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div id="previewContainer" class="preview-container" style="display: none;">
+      <h3>Preview</h3>
+      <img id="previewImage" src="" alt="Preview">
+      <div class="mt-3">
+        <button id="uploadButton" class="btn btn-success">Generate Beads Template</button>
+        <button id="clearButton" class="btn btn-default">Clear Image</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    let selectedFile = null;
+    const dropZone = $('#dropZone');
+    const fileInput = $('#fileInput');
+    const previewContainer = $('#previewContainer');
+    const previewImage = $('#previewImage');
+    const uploadButton = $('#uploadButton');
+    const clearButton = $('#clearButton');
+
+    // Prevent default drag behaviors
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.on(eventName, function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    });
+
+    // Highlight drop zone when dragging over it
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.on(eventName, function() {
+            dropZone.addClass('dragover');
+        });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.on(eventName, function() {
+            dropZone.removeClass('dragover');
+        });
+    });
+
+    // Handle dropped files
+    dropZone.on('drop', function(e) {
+        const dt = e.originalEvent.dataTransfer;
+        const files = dt.files;
+        handleFiles(files);
+    });
+
+    // Handle file input
+    fileInput.on('change', function() {
+        handleFiles(this.files);
+    });
+
+    // Handle file selection
+    function handleFiles(files) {
+        if (files.length > 0) {
+            // Always only handle the first file
+            const file = files[0];
+
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                alert('Please upload an image file.');
+                return;
+            }
+
+            selectedFile = file;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImage.attr('src', e.target.result);
+                // dropZone.parent().hide();
+                previewContainer.show();
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    // Clear button handler
+    clearButton.on('click', function() {
+        selectedFile = null;
+        fileInput.val('');
+        previewImage.attr('src', '');
+        previewContainer.hide();
+        // dropZone.parent().show();
+    });
+
+    // Upload button handler
+    uploadButton.on('click', function() {
+        if (!selectedFile) {
+            alert('Please select an image first.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('image', selectedFile);
+
+        // Disable button and show loading state
+        uploadButton.prop('disabled', true).text('Generating...');
+
+        $.ajax({
+            url: '{{ url_for("generateBeadsTemplatePost") }}',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                alert('Template generated successfully!');
+                // Handle response here (e.g., display result, download, etc.)
+                console.log(response);
+            },
+            error: function(xhr, status, error) {
+                alert('Error generating template: ' + error);
+                console.error(error);
+            },
+            complete: function() {
+                uploadButton.prop('disabled', false).text('Generate Beads Template');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
