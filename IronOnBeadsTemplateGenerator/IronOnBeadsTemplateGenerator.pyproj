@@ -27,6 +27,7 @@ SERVER_PORT=5678</PythonDebugWebServerCommandEnvironment>
     <TestFramework>pytest</TestFramework>
     <UnitTestPattern>test*.py</UnitTestPattern>
     <UnitTestRootDirectory>.</UnitTestRootDirectory>
+    <InterpreterArguments>-Xfrozen_modules=off</InterpreterArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>

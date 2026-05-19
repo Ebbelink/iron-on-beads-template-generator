@@ -2,6 +2,7 @@
 .vs/
 obj/
 
+uploads/
 TestResults/
 
 # Byte-compiled / optimized / DLL files

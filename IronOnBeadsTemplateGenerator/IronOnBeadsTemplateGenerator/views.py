@@ -11,10 +11,9 @@ from IronOnBeadsTemplateGenerator import app
 import os
 import numpy
 from enum import Enum
-
-# from PIL import Image
-# import numpy
-# from scipy import ndimage
+from shapely.geometry import Polygon, MultiPolygon
+from shapely.validation import make_valid
+from PIL import Image, ImageDraw
 from skimage import filters, img_as_ubyte, measure, feature, color, io, morphology
 
 
@@ -83,13 +82,9 @@ def generateBeadsTemplatePost():
 
     getEdgeContour(imageOriginal_np, file.filename, SupportedThresholdMethod.LI)
 
-    getEdgeContour(imageOriginal_np, file.filename, SupportedThresholdMethod.NIBLACK)
+    # getEdgeContour(imageOriginal_np, file.filename, SupportedThresholdMethod.NIBLACK)
 
     getEdgeContour(imageOriginal_np, file.filename, SupportedThresholdMethod.SAUVOLA)
-
-    
-    # binary = morphology.binary_closing(binary)
-    # saveImage(binary, file.name, "binary_threshold_sauvola-binary_closed")
 
     # edgeContour_nd = getEdgeContour(imageGrayScale_np, file.name)
 
@@ -131,63 +126,148 @@ class SupportedThresholdMethod(Enum):
     SAUVOLA = 4
 
 
+class EdgeContourResult:
+    def __init__(self, polygon, centroid, image_size):
+        self.polygon = polygon
+        self.centroid = centroid
+        self.image_size = image_size
+
+    polygon: Polygon | MultiPolygon
+    centroid: tuple[float, float]
+    image_size: tuple[int, int]
+
+
 def getEdgeContour(
     imageOriginal_np, filename, threshold_method=SupportedThresholdMethod.NIELS
-):
+) -> EdgeContourResult:
     imageGrayScale_np = getImageGrayscale(imageOriginal_np, filename)
+    saveImage(imageGrayScale_np, filename, "grayscale")
+
     background_value = calculateBackgroundColor(imageGrayScale_np)
     isWhiteBackground = background_value > 0.5
+    height, width = imageGrayScale_np.shape
 
-    threshold_method_name = threshold_method.name.lower()
+    imageToThreshold = imageGrayScale_np
 
     match threshold_method:
         case SupportedThresholdMethod.NIELS:
             if isWhiteBackground:
-                thresholdValue = background_value * 0.9
-                binary = imageGrayScale_np < thresholdValue
+                thresholdValue = background_value * 0.8
+                binary = imageToThreshold < thresholdValue
             else:
                 thresholdValue = background_value * 1.1
-                binary = imageGrayScale_np > thresholdValue
+                binary = imageToThreshold > thresholdValue
         case SupportedThresholdMethod.LI:
-            thresholdValue = filters.threshold_li(imageGrayScale_np)
-            # Create a binary image by applying the threshold
+            thresholdValue = filters.threshold_li(imageToThreshold)
             if isWhiteBackground:
-                binary = imageGrayScale_np < thresholdValue
+                binary = imageToThreshold < thresholdValue
             else:
-                binary = imageGrayScale_np > thresholdValue
+                binary = imageToThreshold > thresholdValue
         case SupportedThresholdMethod.NIBLACK:
-            thresholdValue = filters.threshold_niblack(imageGrayScale_np)
-            # Create a binary image by applying the threshold
+            thresholdValue = filters.threshold_niblack(imageToThreshold, 29)
             if isWhiteBackground:
-                binary = imageGrayScale_np < thresholdValue
+                binary = imageToThreshold < thresholdValue
             else:
-                binary = imageGrayScale_np > thresholdValue
+                binary = imageToThreshold > thresholdValue
         case SupportedThresholdMethod.SAUVOLA:
-            thresholdValue = filters.threshold_sauvola(imageGrayScale_np)
+            thresholdValue = filters.threshold_sauvola(imageToThreshold)
             if isWhiteBackground:
-                binary = imageGrayScale_np < thresholdValue
+                binary = imageToThreshold < thresholdValue
             else:
-                binary = imageGrayScale_np > thresholdValue
+                binary = imageToThreshold > thresholdValue
 
+    threshold_method_name = threshold_method.name.lower()
     saveImage(binary, filename, f"binary_threshold_{threshold_method_name}")
 
     # Remove noise from binary image
-    binary = morphology.isotropic_closing(binary, radius=5)
-    saveImage(
-        binary, filename, f"binary_threshold_{threshold_method_name}-binary_closed"
-    )
-    binary = morphology.remove_small_objects(binary, max_size=100)
+    binary = morphology.remove_small_objects(binary, max_size=130)
     saveImage(
         binary,
         filename,
         f"binary_threshold_{threshold_method_name}-binary_removed_small",
     )
 
+    binary = morphology.isotropic_closing(binary, radius=5)
+    saveImage(
+        binary, filename, f"binary_threshold_{threshold_method_name}-binary_closed"
+    )
+
+    contours = measure.find_contours(binary, level=0.5)
+    largest_contour = max(contours, key=len)
+
+    # ------------------------------------------------------------------ #
+    # 6. Convert to Shapely Polygon                                      #
+    # ------------------------------------------------------------------ #
+    # find_contours returns (row, col) → convert to (x, y) = (col, row)
+    xy_points = [(pt[1], pt[0]) for pt in largest_contour]
+
+    polygon = Polygon(xy_points)
+
+    # Heal any self-intersections from pixel-level noise
+    if not polygon.is_valid:
+        polygon = make_valid(polygon)
+
+    # If make_valid split it into a MultiPolygon, keep only the largest part
+    if isinstance(polygon, MultiPolygon):
+        polygon = max(polygon.geoms, key=lambda g: g.area)
+
+    # Lightly smooth the polygon to reduce pixel staircase artifacts
+    polygon = polygon.simplify(tolerance=1.0, preserve_topology=True)
+
+    # ------------------------------------------------------------------ #
+    # 7. Compute centroid and scale                                      #
+    # ------------------------------------------------------------------ #
+    centroid = (polygon.centroid.x, polygon.centroid.y)
+
+    # Draw polygon on grayscale image
+    image_with_polygon = drawPolygonOnImage(
+        imageGrayScale_np, polygon, color=(255, 0, 0), line_width=3
+    )
+    saveImage(
+        image_with_polygon, filename, "", f"polygon_overlay_{threshold_method_name}"
+    )
+
+    return EdgeContourResult(polygon, centroid, (width, height))
+
+
+def drawPolygonOnImage(image_np, polygon, color=(255, 0, 0), line_width=2):
+    """
+    Draw a Shapely polygon on a numpy image array.
+
+    Args:
+        image_np: grayscale numpy array (height, width)
+        polygon: Shapely Polygon object
+        color: RGB tuple (default: bright red)
+        line_width: thickness of the polygon outline
+
+    Returns:
+        RGB numpy array with polygon drawn
+    """
+    if len(image_np.shape) == 2:
+        image_rgb = numpy.stack([image_np, image_np, image_np], axis=2)
+    else:
+        image_rgb = image_np.copy()
+
+    if image_rgb.dtype != numpy.uint8:
+        image_rgb = img_as_ubyte(image_rgb)
+
+    pil_image = Image.fromarray(image_rgb)
+    draw = ImageDraw.Draw(pil_image)
+
+    # Extract polygon exterior coordinates
+    coords = list(polygon.exterior.coords)
+
+    # Draw the polygon
+    draw.polygon(coords, outline=color, width=line_width)
+
+    # Convert back to numpy
+    return numpy.array(pil_image)
+
 
 def saveImage(image, filename, prefix="", postfix=""):
     upload_folder = os.path.join(app.root_path, f"uploads/{g.request_id}")
     if not os.path.exists(upload_folder):
-            os.makedirs(upload_folder)
+        os.makedirs(upload_folder)
 
     filepath = os.path.join(
         upload_folder,
@@ -197,21 +277,6 @@ def saveImage(image, filename, prefix="", postfix=""):
         + ".png",
     )
     io.imsave(filepath, img_as_ubyte(image))
-
-
-def detectCannyEdges(imageGrayScale, originalFileName=""):
-    edges = feature.canny(
-        imageGrayScale, sigma=1.0, low_threshold=0.08, high_threshold=0.19
-    )
-    contours_nd = measure.find_contours(edges, 0.5)
-
-    if originalFileName:
-        upload_folder = os.path.join(app.root_path, "uploads")
-        # filepath = os.path.join(upload_folder, originalFileName + "-edges-" + i.__str__() + ".png")
-        filepath = os.path.join(upload_folder, originalFileName + "-edges.png")
-        io.imsave(filepath, img_as_ubyte(edges))
-
-    return contours_nd
 
 
 def getImageGrayscale(imageOriginal_np, originalFileName=""):
@@ -259,42 +324,14 @@ def calculateBackgroundColor(image_np, corner_size=20):
     return background_color
 
 
-class FileInfo:
-    def __init__(self, filename, filepath):
-        self.name = filename
-        self.path = filepath
-
-
-def persistFile(file):
-    try:
-        # Secure the filename
-        filename = secure_filename(file.filename)
-
-        # Create upload folder if it doesn't exist
-        upload_folder = os.path.join(app.root_path, "uploads")
-        if not os.path.exists(upload_folder):
-            os.makedirs(upload_folder)
-
-        # Save the file
-        filepath = os.path.join(upload_folder, filename)
-        file.save(filepath)
-
-        # TODO: Process the image and generate beads template
-        # Add your image processing logic here
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    return FileInfo(filename, filepath)
-
-
-
 @app.before_request
 def assign_request_id():
-    request_id = request.headers.get('X-REQUEST-ID') or str(uuid.uuid4())
-    
+    request_id = request.headers.get("X-REQUEST-ID") or str(uuid.uuid4())
+
     g.request_id = request_id
+
 
 @app.after_request
 def append_request_id(response):
-    response.headers['X-REQUEST-ID'] = getattr(g, 'request_id', None)
+    response.headers["X-REQUEST-ID"] = getattr(g, "request_id", None)
     return response
