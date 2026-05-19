@@ -3,6 +3,7 @@ Routes and views for the flask application.
 """
 
 from datetime import datetime
+from http.client import OK
 from uuid import UUID
 import uuid
 from flask import g, render_template, request, jsonify, send_file
@@ -131,23 +132,37 @@ def generateTemplateOutlines():
         jsonify(
             {
                 "filename": file.name,
-                "option1": overlayCustom,
-                "option2": overlayLi,
-                "option3": overlaySauvola,
+                "xRequestId": g.request_id,
+                "option1": {"algorithm": "custom", "imagePath": overlayCustom},
+                "option2": {"algorithm": "li", "imagePath": overlayLi},
+                "option3": {"algorithm": "sauvola", "imagePath": overlaySauvola},
             }
         ),
         200,
     )
 
 
-@app.route("/generate-beads-template", methods=["POST"])
-def generateBeadsTemplatePost():
+@app.route("/generate-beads-template/<algorithm>", methods=["POST"])
+def generateBeadsTemplatePost(algorithm):
     """Make some 3D MODEL"""
-    # edgeContour_nd = getEdgeContour(imageGrayScale_np, file.name)
+    pathToImage = ""
+    # Get last image (closed gaps) and recalculate the contour
+    path = f"uploads/processing/{g.request_id}"
+    expected_directory = os.path.join(app.root_path, path)
+    if os.path.exists(expected_directory):
+        dirContents = os.listdir(expected_directory)
+        for currentFileName in dirContents:
+            if currentFileName.startswith(f"binary_{algorithm}-closed_gaps"):
+                pathToImage = os.path.join(expected_directory, currentFileName)
+                break
+    if not pathToImage:
+        return (
+            jsonify({"error": "No processed image found for the given algorithm"}),
+            400,
+        )
 
-    # deNoised = morphology.remove_small_objects(edgeContour_nd, 100)
-
-    # contourVector = buildContourVector(edgeContour)
+    cleanBinaryImage = numpy.array(io.imread(pathToImage))
+    contour = getContour(cleanBinaryImage)
 
     # Start building the 3D model
 
@@ -164,6 +179,8 @@ def generateBeadsTemplatePost():
     # DONE BUILDING MODEL
 
     # exportModelToObj(3dModel)
+
+    return jsonify(success=True)
 
 
 @app.route("/previews", methods=["GET"])
@@ -201,9 +218,49 @@ def getEdgeContour(
         imageGrayScale_np, filename, f"uploads/processing/{g.request_id}", "grayscale"
     )
 
+    cleanBinaryImage = getCleanBinaryImage(
+        imageGrayScale_np, threshold_method, filename
+    )
+
+    return getContour(cleanBinaryImage)
+
+
+def getContour(cleanedBinaryImage):
+    height, width = cleanedBinaryImage.shape
+    contours = measure.find_contours(cleanedBinaryImage, level=0.5)
+    largest_contour = max(contours, key=len)
+
+    # ------------------------------------------------------------------ #
+    # 6. Convert to Shapely Polygon                                      #
+    # ------------------------------------------------------------------ #
+    # find_contours returns (row, col) → convert to (x, y) = (col, row)
+    xy_points = [(pt[1], pt[0]) for pt in largest_contour]
+
+    polygon = Polygon(xy_points)
+
+    # Heal any self-intersections from pixel-level noise
+    if not polygon.is_valid:
+        polygon = make_valid(polygon)
+
+    # If make_valid split it into a MultiPolygon, keep only the largest part
+    if isinstance(polygon, MultiPolygon):
+        polygon = max(polygon.geoms, key=lambda g: g.area)
+
+    # Lightly smooth the polygon to reduce pixel staircase artifacts
+    polygon = polygon.simplify(tolerance=1.0, preserve_topology=True)
+
+    # ------------------------------------------------------------------ #
+    # 7. Compute centroid and scale                                      #
+    # ------------------------------------------------------------------ #
+    centroid = (polygon.centroid.x, polygon.centroid.y)
+
+    return EdgeContourResult(polygon, centroid, (width, height))
+
+
+def getCleanBinaryImage(imageGrayScale_np, threshold_method, filename):
     background_value = calculateBackgroundColor(imageGrayScale_np)
     isWhiteBackground = background_value > 0.5
-    height, width = imageGrayScale_np.shape
+    # height, width = imageGrayScale_np.shape
 
     imageToThreshold = imageGrayScale_np
 
@@ -239,7 +296,7 @@ def getEdgeContour(
         binary,
         filename,
         f"uploads/processing/{g.request_id}",
-        f"binary_threshold_{threshold_method_name}",
+        f"binary_{threshold_method_name}",
     )
 
     # Remove noise from binary image
@@ -248,7 +305,7 @@ def getEdgeContour(
         binary,
         filename,
         f"uploads/processing/{g.request_id}",
-        f"binary_threshold_{threshold_method_name}-binary_removed_small",
+        f"binary_{threshold_method_name}-removed_small_objects",
     )
 
     binary = morphology.isotropic_closing(binary, radius=5)
@@ -256,37 +313,10 @@ def getEdgeContour(
         binary,
         filename,
         f"uploads/processing/{g.request_id}",
-        f"binary_threshold_{threshold_method_name}-binary_closed",
+        f"binary_{threshold_method_name}-closed_gaps",
     )
 
-    contours = measure.find_contours(binary, level=0.5)
-    largest_contour = max(contours, key=len)
-
-    # ------------------------------------------------------------------ #
-    # 6. Convert to Shapely Polygon                                      #
-    # ------------------------------------------------------------------ #
-    # find_contours returns (row, col) → convert to (x, y) = (col, row)
-    xy_points = [(pt[1], pt[0]) for pt in largest_contour]
-
-    polygon = Polygon(xy_points)
-
-    # Heal any self-intersections from pixel-level noise
-    if not polygon.is_valid:
-        polygon = make_valid(polygon)
-
-    # If make_valid split it into a MultiPolygon, keep only the largest part
-    if isinstance(polygon, MultiPolygon):
-        polygon = max(polygon.geoms, key=lambda g: g.area)
-
-    # Lightly smooth the polygon to reduce pixel staircase artifacts
-    polygon = polygon.simplify(tolerance=1.0, preserve_topology=True)
-
-    # ------------------------------------------------------------------ #
-    # 7. Compute centroid and scale                                      #
-    # ------------------------------------------------------------------ #
-    centroid = (polygon.centroid.x, polygon.centroid.y)
-
-    return EdgeContourResult(polygon, centroid, (width, height))
+    return binary
 
 
 def drawPolygonOnImage(image_np, polygon, color=(255, 0, 0), line_width=2):

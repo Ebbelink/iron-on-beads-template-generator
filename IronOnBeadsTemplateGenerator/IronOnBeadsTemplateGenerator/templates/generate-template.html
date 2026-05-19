@@ -61,18 +61,32 @@
   <div class="row">
     <div class="col-md-4">
       <h3>Option 1</h3>
-      <img id="algorith-option-1" alt="Option 1" class="img-fluid mb-3">
-      <button class="btn btn-primary choose-option" data-option="1">Choose option 1</button>
+      <img id="algorith-option-1" alt="Option 1" class="img-fluid mb-3 preview-image-clickable" style="cursor: pointer;">
+      <button id="algorith-option-1-button" class="btn btn-primary choose-option" data-option="1" data-algorithm="custom">Choose option 1</button>
     </div>
     <div class="col-md-4">
       <h3>Option 2</h3>
-      <img id="algorith-option-2" alt="Option 2" class="img-fluid mb-3">
-      <button class="btn btn-primary choose-option" data-option="2">Choose option 2</button>
+      <img id="algorith-option-2" alt="Option 2" class="img-fluid mb-3 preview-image-clickable" style="cursor: pointer;">
+      <button id="algorith-option-2-button" class="btn btn-primary choose-option" data-option="2">Choose option 2</button>
     </div>
     <div class="col-md-4">
       <h3>Option 3</h3>
-      <img id="algorith-option-3" alt="Option 3" class="img-fluid mb-3">
-      <button class="btn btn-primary choose-option" data-option="3">Choose option 3</button>
+      <img id="algorith-option-3" alt="Option 3" class="img-fluid mb-3 preview-image-clickable" style="cursor: pointer;">
+      <button id="algorith-option-3-button" class="btn btn-primary choose-option" data-option="3">Choose option 3</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fullscreen Image Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-fullscreen">
+    <div class="modal-content bg-dark bg-opacity-75">
+      <div class="modal-header border-0">
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body d-flex align-items-center justify-content-center p-0" data-bs-dismiss="modal" style="cursor: pointer;">
+        <img id="modalImage" src="" alt="Fullscreen preview" class="img-fluid" style="max-height: 90vh; cursor: default;" onclick="event.stopPropagation();">
+      </div>
     </div>
   </div>
 </div>
@@ -83,6 +97,7 @@
 <script>
 $(document).ready(function() {
     let selectedFile = null;
+    let xRequestId = null;
     const dropZone = $('#dropZone');
     const fileInput = $('#fileInput');
     const previewContainer = $('#previewContainer');
@@ -162,6 +177,7 @@ $(document).ready(function() {
 
     function reset() {
       selectedFile = null;
+      xRequestId = null;
       fileInput.val('');
       previewImage.attr('src', '');
       previewContainer.hide();
@@ -193,9 +209,14 @@ $(document).ready(function() {
             success: function(response) {
                 console.log('Template generated successfully!');
                 console.log(response);
-                $("#algorith-option-1").attr("src", "{{ url_for('getPreviews') }}?previewPath=" + encodeURIComponent(response.option1));
-                $("#algorith-option-2").attr("src", "{{ url_for('getPreviews') }}?previewPath=" + encodeURIComponent(response.option2));
-                $("#algorith-option-3").attr("src", "{{ url_for('getPreviews') }}?previewPath=" + encodeURIComponent(response.option3));
+                xRequestId = response.xRequestId;
+
+                $("#algorith-option-1").attr("src", "{{ url_for('getPreviews') }}?previewPath=" + encodeURIComponent(response.option1.imagePath));
+                $("#algorith-option-1-button").attr("data-algorithm", response.option1.algorithm);
+                $("#algorith-option-2").attr("src", "{{ url_for('getPreviews') }}?previewPath=" + encodeURIComponent(response.option2.imagePath));
+                $("#algorith-option-2-button").attr("data-algorithm", response.option2.algorithm);
+                $("#algorith-option-3").attr("src", "{{ url_for('getPreviews') }}?previewPath=" + encodeURIComponent(response.option3.imagePath));
+                $("#algorith-option-3-button").attr("data-algorithm", response.option3.algorithm);
 
                 // set the src of the 3 preview images so the user can pick
             },
@@ -213,13 +234,40 @@ $(document).ready(function() {
 
     $('.choose-option').on('click', function () {
       const chosenOption = $(this).data('option');
-      chooseTemplateGenerationAlgorithm(chosenOption);
+      const chosenAlgorithm = $(this).data('algorithm');
+      chooseTemplateGenerationAlgorithm(chosenOption, chosenAlgorithm);
     });
 
-    function chooseTemplateGenerationAlgorithm(chosenOption) {
+    function chooseTemplateGenerationAlgorithm(chosenOption, chosenAlgorithm) {
       console.log("User choose option: ", chosenOption);
+      console.log("User choose algorithm: ", chosenAlgorithm);
       // Do call to backend to start the generation of the template for the chosen option
+      $.ajax({
+        url: '{{ url_for("generateBeadsTemplatePost", algorithm='') }}/' + chosenAlgorithm,
+        type: 'POST',
+        contentType: 'application/json',
+        headers: {
+          'X-REQUEST-ID': xRequestId
+        },
+        data: JSON.stringify({ algorithm: chosenAlgorithm }),
+        success: function (response) {
+          console.log('Template generation started successfully!');
+          console.log(response);
+        },
+        error: function (xhr, status, error) {
+          alert('Error starting template generation: ' + error);
+          console.error(error);
+        }
+      });
     }
+
+    // Fullscreen image viewer
+    $('.preview-image-clickable').on('click', function() {
+        const imgSrc = $(this).attr('src');
+        $('#modalImage').attr('src', imgSrc);
+        const imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+        imageModal.show();
+    });
 });
 </script>
 {% endblock %}
