@@ -24,8 +24,11 @@
       Drag &amp; drop or browse to pick an image. After you have chosen an image you can upload it.
       The service will try it's best to make a good representation of the image as a beads template
     </p>
+    <button id="resetButton" class="btn btn-warning" style="display: none">Reset</button>
   </div>
-  <div class="col-md-6 ">
+</div>
+<div class="row upload-row">
+  <div class="col-md-6">
     <h3>Upload</h3>
     <div id="dropZone" class="drop-zone">
       <div class="drop-zone-text">
@@ -49,6 +52,29 @@
   </div>
 </div>
 
+<div class="algorith-preview-images" hidden>
+  <div class="row">
+    <div class="col-md-12">
+      <h3>Please pick any of these options to generate the template from</h3>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <h3>Option 1</h3>
+    <img id="algorith-option-1" alt="Option 1" class="img-responsive mb-3">
+    <button class="btn btn-primary choose-option" data-option="1">Choose option 1</button>
+  </div>
+  <div class="col-md-4">
+    <h3>Option 2</h3>
+    <img id="algorith-option-2" alt="Option 2" class="img-responsive mb-3">
+    <button class="btn btn-primary choose-option" data-option="2">Choose option 2</button>
+  </div>
+  <div class="col-md-4">
+    <h3>Option 3</h3>
+    <img id="algorith-option-3" alt="Option 3" class="img-responsive mb-3">
+    <button class="btn btn-primary choose-option" data-option="3">Choose option 3</button>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -61,6 +87,9 @@ $(document).ready(function() {
     const previewImage = $('#previewImage');
     const uploadButton = $('#uploadButton');
     const clearButton = $('#clearButton');
+    const resetButton = $('#resetButton');
+    const algorithPreviewImages = $(".algorith-preview-images");
+    const uploadRow = $('.upload-row');
 
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -114,19 +143,31 @@ $(document).ready(function() {
                 previewImage.attr('src', e.target.result);
                 // dropZone.parent().hide();
                 previewContainer.show();
+              resetButton.show();
             };
             reader.readAsDataURL(file);
         }
     }
 
+    resetButton.on('click', function () {
+      reset();
+    });
+
     // Clear button handler
     clearButton.on('click', function() {
-        selectedFile = null;
-        fileInput.val('');
-        previewImage.attr('src', '');
-        previewContainer.hide();
-        // dropZone.parent().show();
+      reset();
     });
+
+    function reset() {
+      selectedFile = null;
+      fileInput.val('');
+      previewImage.attr('src', '');
+      previewContainer.hide();
+      resetButton.hide();
+      uploadRow.show();
+      algorithPreviewImages.hide();
+      // dropZone.parent().show();
+    }
 
     // Upload button handler
     uploadButton.on('click', function() {
@@ -142,15 +183,19 @@ $(document).ready(function() {
         uploadButton.prop('disabled', true).text('Generating...');
 
         $.ajax({
-            url: '{{ url_for("generateBeadsTemplatePost") }}',
+            url: '{{ url_for("generateTemplateOutlines") }}',
             type: 'POST',
             data: formData,
             processData: false,
             contentType: false,
             success: function(response) {
-                alert('Template generated successfully!');
-                // Handle response here (e.g., display result, download, etc.)
+                console.log('Template generated successfully!');
                 console.log(response);
+                $("#algorith-option-1").attr("src", "{{ url_for('getPreviews') }}?previewPath=" + encodeURIComponent(response.option1));
+                $("#algorith-option-2").attr("src", "{{ url_for('getPreviews') }}?previewPath=" + encodeURIComponent(response.option2));
+                $("#algorith-option-3").attr("src", "{{ url_for('getPreviews') }}?previewPath=" + encodeURIComponent(response.option3));
+
+                // set the src of the 3 preview images so the user can pick
             },
             error: function(xhr, status, error) {
                 alert('Error generating template: ' + error);
@@ -158,9 +203,21 @@ $(document).ready(function() {
             },
             complete: function() {
                 uploadButton.prop('disabled', false).text('Generate Beads Template');
+                algorithPreviewImages.show();
+                uploadRow.hide();
             }
         });
     });
+
+    $('.choose-option').on('click', function () {
+      const chosenOption = $(this).data('option');
+      chooseTemplateGenerationAlgorithm(chosenOption);
+    });
+
+    function chooseTemplateGenerationAlgorithm(chosenOption) {
+      console.log("User choose option: ", chosenOption);
+      // Do call to backend to start the generation of the template for the chosen option
+    }
 });
 </script>
 {% endblock %}

@@ -170,7 +170,7 @@ def rm_dir(path):
 class TestGenerateBeadsTemplate:
     """Test class for beads template generation."""
 
-    CONST_ENDPOINT_PATH: Final[str] = "/generate-beads-template"
+    CONST_ENDPOINT_PATH: Final[str] = "/generate-template-outlines"
 
     def test_get_generate_template_page(self, client):
         """Test that the generate template page loads correctly."""

@@ -5,7 +5,7 @@ Routes and views for the flask application.
 from datetime import datetime
 from uuid import UUID
 import uuid
-from flask import g, render_template, request, jsonify
+from flask import g, render_template, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 from IronOnBeadsTemplateGenerator import app
 import os
@@ -49,8 +49,8 @@ def generateBeadsTemplate():
 #     )
 
 
-@app.route("/generate-beads-template", methods=["POST"])
-def generateBeadsTemplatePost():
+@app.route("/generate-template-outlines", methods=["POST"])
+def generateTemplateOutlines():
     """START THE MAGIC!"""
     pegBeadRadiusInMm = 5
 
@@ -76,16 +76,73 @@ def generateBeadsTemplatePost():
 
     # fileInfoOriginal = persistFile(file)
     imageOriginal_np = io.imread(file)
-    saveImage(imageOriginal_np, file.filename, "original")
+    saveImage(
+        imageOriginal_np,
+        file.filename,
+        f"uploads/processing/{g.request_id}",
+        "original",
+    )
 
-    getEdgeContour(imageOriginal_np, file.filename, SupportedThresholdMethod.NIELS)
+    edgeContourCustom = getEdgeContour(
+        imageOriginal_np, file.filename, SupportedThresholdMethod.NIELS
+    )
+    image_with_polygon = drawPolygonOnImage(
+        imageOriginal_np, edgeContourCustom.polygon, color=(255, 0, 0), line_width=3
+    )
+    overlayCustom = saveImage(
+        image_with_polygon,
+        file.filename,
+        f"uploads/processing/{g.request_id}",
+        "",
+        "polygon_overlay_custom",
+    )
 
-    getEdgeContour(imageOriginal_np, file.filename, SupportedThresholdMethod.LI)
+    edgeContourLi = getEdgeContour(
+        imageOriginal_np, file.filename, SupportedThresholdMethod.LI
+    )
+    image_with_polygon = drawPolygonOnImage(
+        imageOriginal_np, edgeContourLi.polygon, color=(255, 0, 0), line_width=3
+    )
+    overlayLi = saveImage(
+        image_with_polygon,
+        file.filename,
+        f"uploads/processing/{g.request_id}",
+        "",
+        "polygon_overlay_li",
+    )
 
     # getEdgeContour(imageOriginal_np, file.filename, SupportedThresholdMethod.NIBLACK)
 
-    getEdgeContour(imageOriginal_np, file.filename, SupportedThresholdMethod.SAUVOLA)
+    edgeContourSauvola = getEdgeContour(
+        imageOriginal_np, file.filename, SupportedThresholdMethod.SAUVOLA
+    )
+    image_with_polygon = drawPolygonOnImage(
+        imageOriginal_np, edgeContourSauvola.polygon, color=(255, 0, 0), line_width=3
+    )
+    overlaySauvola = saveImage(
+        image_with_polygon,
+        file.filename,
+        f"uploads/processing/{g.request_id}",
+        "",
+        "polygon_overlay_sauvola",
+    )
 
+    return (
+        jsonify(
+            {
+                "filename": file.name,
+                "option1": overlayCustom,
+                "option2": overlayLi,
+                "option3": overlaySauvola,
+            }
+        ),
+        200,
+    )
+
+
+@app.route("/generate-beads-template", methods=["POST"])
+def generateBeadsTemplatePost():
+    """Make some 3D MODEL"""
     # edgeContour_nd = getEdgeContour(imageGrayScale_np, file.name)
 
     # deNoised = morphology.remove_small_objects(edgeContour_nd, 100)
@@ -108,15 +165,14 @@ def generateBeadsTemplatePost():
 
     # exportModelToObj(3dModel)
 
-    return (
-        jsonify(
-            {
-                "filename": file.name,
-                # "filepath": fileInfoOriginal.path,
-            }
-        ),
-        200,
-    )
+
+@app.route("/previews", methods=["GET"])
+def getPreviews():
+    previewPath = request.args.get("previewPath")
+    if previewPath.startswith("uploads/processing/"):
+        return send_file(os.path.join(app.root_path, previewPath))
+    else:
+        return jsonify({"error": "Invalid preview path"}), 400
 
 
 class SupportedThresholdMethod(Enum):
@@ -141,7 +197,9 @@ def getEdgeContour(
     imageOriginal_np, filename, threshold_method=SupportedThresholdMethod.NIELS
 ) -> EdgeContourResult:
     imageGrayScale_np = getImageGrayscale(imageOriginal_np, filename)
-    saveImage(imageGrayScale_np, filename, "grayscale")
+    saveImage(
+        imageGrayScale_np, filename, f"uploads/processing/{g.request_id}", "grayscale"
+    )
 
     background_value = calculateBackgroundColor(imageGrayScale_np)
     isWhiteBackground = background_value > 0.5
@@ -177,19 +235,28 @@ def getEdgeContour(
                 binary = imageToThreshold > thresholdValue
 
     threshold_method_name = threshold_method.name.lower()
-    saveImage(binary, filename, f"binary_threshold_{threshold_method_name}")
+    saveImage(
+        binary,
+        filename,
+        f"uploads/processing/{g.request_id}",
+        f"binary_threshold_{threshold_method_name}",
+    )
 
     # Remove noise from binary image
     binary = morphology.remove_small_objects(binary, max_size=130)
     saveImage(
         binary,
         filename,
+        f"uploads/processing/{g.request_id}",
         f"binary_threshold_{threshold_method_name}-binary_removed_small",
     )
 
     binary = morphology.isotropic_closing(binary, radius=5)
     saveImage(
-        binary, filename, f"binary_threshold_{threshold_method_name}-binary_closed"
+        binary,
+        filename,
+        f"uploads/processing/{g.request_id}",
+        f"binary_threshold_{threshold_method_name}-binary_closed",
     )
 
     contours = measure.find_contours(binary, level=0.5)
@@ -218,14 +285,6 @@ def getEdgeContour(
     # 7. Compute centroid and scale                                      #
     # ------------------------------------------------------------------ #
     centroid = (polygon.centroid.x, polygon.centroid.y)
-
-    # Draw polygon on grayscale image
-    image_with_polygon = drawPolygonOnImage(
-        imageGrayScale_np, polygon, color=(255, 0, 0), line_width=3
-    )
-    saveImage(
-        image_with_polygon, filename, "", f"polygon_overlay_{threshold_method_name}"
-    )
 
     return EdgeContourResult(polygon, centroid, (width, height))
 
@@ -264,28 +323,34 @@ def drawPolygonOnImage(image_np, polygon, color=(255, 0, 0), line_width=2):
     return numpy.array(pil_image)
 
 
-def saveImage(image, filename, prefix="", postfix=""):
-    upload_folder = os.path.join(app.root_path, f"uploads/{g.request_id}")
+def saveImage(image, filename, directory="uploads", prefix="", postfix="") -> str:
+    upload_folder = os.path.join(app.root_path, f"{directory}")
     if not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
 
-    filepath = os.path.join(
-        upload_folder,
+    constructed_filename = (
         (prefix + "-" if prefix else "")
         + filename
-        + (postfix + "-" if postfix else "")
-        + ".png",
+        + ("-" + postfix if postfix else "")
+        + ".png"
     )
+    filepath = os.path.join(upload_folder, constructed_filename)
     io.imsave(filepath, img_as_ubyte(image))
+
+    return os.path.join(directory, constructed_filename)
 
 
 def getImageGrayscale(imageOriginal_np, originalFileName=""):
     imageGrayScale = color.rgb2gray(imageOriginal_np)
 
     if originalFileName:
-        upload_folder = os.path.join(app.root_path, "uploads")
-        filepath = os.path.join(upload_folder, originalFileName + "-grayscale.png")
-        io.imsave(filepath, img_as_ubyte(imageGrayScale))
+        saveImage(
+            img_as_ubyte(imageGrayScale),
+            originalFileName,
+            f"uploads/processing/{g.request_id}",
+            "",
+            "-grayscale.png",
+        )
 
     return imageGrayScale
 
