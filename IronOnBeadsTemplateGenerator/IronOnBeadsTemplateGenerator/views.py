@@ -170,7 +170,9 @@ def generateBeadsTemplatePost(algorithm):
     # --- Scale polygon from pixels to mm ---
     # Assume 96 DPI → 1 pixel = 25.4/96 mm
     PIXELS_PER_MM = 96 / 25.4
-    polygon_mm = scale_polygon_to_mm(contourResult.polygon, PIXELS_PER_MM)
+    polygon_mm = scale_polygon_to_mm(
+        contourResult.polygon, PIXELS_PER_MM, contourResult.image_size[1]
+    )
 
     mesh = buildBeadsTemplateMesh(polygon_mm)
 
@@ -182,11 +184,13 @@ def generateBeadsTemplatePost(algorithm):
     mesh.export(stl_path)
     mesh.export(obj_path)
 
-    return jsonify({
-        "success": True,
-        "stlPath": f"uploads/processing/{g.request_id}/beads_template.stl",
-        "objPath": f"uploads/processing/{g.request_id}/beads_template.obj",
-    })
+    return jsonify(
+        {
+            "success": True,
+            "stlPath": f"uploads/processing/{g.request_id}/beads_template.stl",
+            "objPath": f"uploads/processing/{g.request_id}/beads_template.obj",
+        }
+    )
 
 
 @app.route("/previews", methods=["GET"])
@@ -425,13 +429,30 @@ def calculateBackgroundColor(image_np, corner_size=20):
     return background_color
 
 
-def scale_polygon_to_mm(polygon: Polygon, pixels_per_mm: float) -> Polygon:
-    """Scale a pixel-space Shapely polygon to millimetres."""
-    coords = [(x / pixels_per_mm, y / pixels_per_mm) for x, y in polygon.exterior.coords]
+def scale_polygon_to_mm(
+    polygon: Polygon, pixels_per_mm: float, image_height_px: int = None
+) -> Polygon:
+    """Scale a pixel-space Shapely polygon to millimetres.
+
+    Flips the Y axis when image_height_px is provided so that the 3D model
+    orientation matches the original image (pixel Y increases downward,
+    3D Y increases upward).
+    """
+    if image_height_px is not None:
+        coords = [
+            (x / pixels_per_mm, (image_height_px - y) / pixels_per_mm)
+            for x, y in polygon.exterior.coords
+        ]
+    else:
+        coords = [
+            (x / pixels_per_mm, y / pixels_per_mm) for x, y in polygon.exterior.coords
+        ]
     return Polygon(coords)
 
 
-def create_peg(x: float, y: float, base_radius=1.25, top_radius=0.75, height=3.5, sections=16) -> trimesh.Trimesh:
+def create_peg(
+    x: float, y: float, base_radius=1.25, top_radius=0.75, height=3.5, sections=16
+) -> trimesh.Trimesh:
     """Create a single truncated-cone peg (flat-topped) at position (x, y) sitting on z=0."""
     peg = trimesh.creation.cone(radius=base_radius, height=height, sections=sections)
 
@@ -454,14 +475,18 @@ def create_peg(x: float, y: float, base_radius=1.25, top_radius=0.75, height=3.5
 
 def place_pegs_on_polygon(polygon: Polygon, peg_spacing_mm=5.0) -> list:
     """
-    Walk shrinking offsets of the polygon, placing pegs every ~peg_spacing_mm mm
-    along each ring, skipping any peg whose centre would be within peg_spacing_mm
-    of an already-placed peg.
+    Place pegs using concentric shrinking rings so peg rows follow the shape
+    outline naturally.  After all rings are exhausted a gap-fill pass scans the
+    interior on a fine grid and places pegs in any region that was left empty
+    (e.g. concave pockets that the inward buffer clipped away).
     """
+    from shapely.geometry import Point
+
     pegs = []
     placed_centres = []
     current_polygon = polygon
 
+    # --- Phase 1: concentric shrinking rings ---
     while True:
         ring = current_polygon.exterior
         ring_length = ring.length
@@ -469,6 +494,9 @@ def place_pegs_on_polygon(polygon: Polygon, peg_spacing_mm=5.0) -> list:
         if ring_length < peg_spacing_mm:
             break
 
+        # Fine scan step so no placeable position is skipped when a candidate
+        # is rejected due to proximity to pegs placed on a different ring.
+        scan_step = peg_spacing_mm / 10.0
         distance = 0.0
         while distance < ring_length:
             pt = ring.interpolate(distance)
@@ -481,14 +509,33 @@ def place_pegs_on_polygon(polygon: Polygon, peg_spacing_mm=5.0) -> list:
             if not too_close:
                 placed_centres.append((cx, cy))
                 pegs.append(create_peg(cx, cy))
-            distance += peg_spacing_mm
+            distance += scan_step
 
-        shrunk = current_polygon.buffer(-peg_spacing_mm)
+        shrunk = current_polygon.buffer(-peg_spacing_mm / 2)
         if shrunk.is_empty:
             break
         if isinstance(shrunk, MultiPolygon):
             shrunk = max(shrunk.geoms, key=lambda g: g.area)
         current_polygon = shrunk
+
+    # --- Phase 2: gap-fill pass ---
+    # Scan the full bounding box on the same grid spacing and insert a peg
+    # wherever the point is inside the original polygon but has no neighbour
+    # within peg_spacing_mm (i.e. was missed by the ring phase).
+    placed_array = np.array(placed_centres) if placed_centres else None
+    min_x, min_y, max_x, max_y = polygon.bounds
+
+    y = min_y
+    while y <= max_y:
+        x = min_x
+        while x <= max_x:
+            if polygon.contains(Point(x, y)):
+                if placed_array is None or np.min(np.hypot(placed_array[:, 0] - x, placed_array[:, 1] - y)) >= peg_spacing_mm:
+                    placed_centres.append((x, y))
+                    placed_array = np.array(placed_centres)
+                    pegs.append(create_peg(x, y))
+            x += peg_spacing_mm
+        y += peg_spacing_mm
 
     return pegs
 
