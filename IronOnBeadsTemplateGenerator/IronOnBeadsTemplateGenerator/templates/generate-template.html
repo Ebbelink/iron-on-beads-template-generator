@@ -2,10 +2,10 @@
 
 {% block content %}
 
-<div class="jumbotron">
-  <h1>Iron on beads template generator</h1>
-  <p class="lead">Image &rarr; 3d OBJ template generator for iron on beads / hama beads / perler beads (however you call them)</p>
-  <p>
+<div class="p-5 mb-4 bg-light rounded-3">
+  <div class="container-fluid py-5">
+    <h1 class="display-5 fw-bold">Iron on beads template generator</h1>
+    <p class="lead">Image &rarr; 3d OBJ template generator for iron on beads / hama beads / perler beads (however you call them)</p>
     <ol>
       <li>Choose image</li>
       <li>Upload image</li>
@@ -14,7 +14,7 @@
       <li>Import into slicer of choice</li>
       <li>Send to your 3D printer (service)</li>
     </ol>
-  </p>
+  </div>
 </div>
 
 <div class="row">
@@ -32,7 +32,7 @@
     <h3>Upload</h3>
     <div id="dropZone" class="drop-zone">
       <div class="drop-zone-text">
-        <i class="glyphicon glyphicon-cloud-upload"></i>
+        <i class="bi bi-cloud-upload fs-1"></i>
         <p>Drag & Drop your image here</p>
         <p>or</p>
         <label for="fileInput" class="btn btn-primary">Browse Files</label>
@@ -43,35 +43,37 @@
   <div class="col-md-6">
     <div id="previewContainer" class="preview-container" style="display: none;">
       <h3>Preview</h3>
-      <img id="previewImage" src="" alt="Preview">
+      <img id="previewImage" src="" alt="Preview" class="img-fluid">
       <div class="mt-3">
         <button id="uploadButton" class="btn btn-success">Generate Beads Template</button>
-        <button id="clearButton" class="btn btn-default">Clear Image</button>
+        <button id="clearButton" class="btn btn-secondary">Clear Image</button>
       </div>
     </div>
   </div>
 </div>
 
-<div class="algorith-preview-images" hidden>
+<div class="algorith-preview-images" style="display: none;">
   <div class="row">
     <div class="col-md-12">
       <h3>Please pick any of these options to generate the template from</h3>
     </div>
   </div>
-  <div class="col-md-4">
-    <h3>Option 1</h3>
-    <img id="algorith-option-1" alt="Option 1" class="img-responsive mb-3">
-    <button class="btn btn-primary choose-option" data-option="1">Choose option 1</button>
-  </div>
-  <div class="col-md-4">
-    <h3>Option 2</h3>
-    <img id="algorith-option-2" alt="Option 2" class="img-responsive mb-3">
-    <button class="btn btn-primary choose-option" data-option="2">Choose option 2</button>
-  </div>
-  <div class="col-md-4">
-    <h3>Option 3</h3>
-    <img id="algorith-option-3" alt="Option 3" class="img-responsive mb-3">
-    <button class="btn btn-primary choose-option" data-option="3">Choose option 3</button>
+  <div class="row">
+    <div class="col-md-4">
+      <h3>Option 1</h3>
+      <img id="algorith-option-1" alt="Option 1" class="img-fluid mb-3">
+      <button class="btn btn-primary choose-option" data-option="1">Choose option 1</button>
+    </div>
+    <div class="col-md-4">
+      <h3>Option 2</h3>
+      <img id="algorith-option-2" alt="Option 2" class="img-fluid mb-3">
+      <button class="btn btn-primary choose-option" data-option="2">Choose option 2</button>
+    </div>
+    <div class="col-md-4">
+      <h3>Option 3</h3>
+      <img id="algorith-option-3" alt="Option 3" class="img-fluid mb-3">
+      <button class="btn btn-primary choose-option" data-option="3">Choose option 3</button>
+    </div>
   </div>
 </div>
 
