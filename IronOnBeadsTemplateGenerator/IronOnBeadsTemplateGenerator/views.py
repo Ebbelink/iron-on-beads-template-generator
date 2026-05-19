@@ -16,6 +16,9 @@ from shapely.geometry import Polygon, MultiPolygon
 from shapely.validation import make_valid
 from PIL import Image, ImageDraw
 from skimage import filters, img_as_ubyte, measure, feature, color, io, morphology
+import trimesh
+import trimesh.creation
+import numpy as np
 
 
 @app.route("/")
@@ -85,7 +88,7 @@ def generateTemplateOutlines():
     )
 
     edgeContourCustom = getEdgeContour(
-        imageOriginal_np, file.filename, SupportedThresholdMethod.NIELS
+        imageOriginal_np, file.filename, SupportedThresholdMethod.CUSTOM
     )
     image_with_polygon = drawPolygonOnImage(
         imageOriginal_np, edgeContourCustom.polygon, color=(255, 0, 0), line_width=3
@@ -162,25 +165,28 @@ def generateBeadsTemplatePost(algorithm):
         )
 
     cleanBinaryImage = numpy.array(io.imread(pathToImage))
-    contour = getContour(cleanBinaryImage)
+    contourResult = getContour(cleanBinaryImage)
 
-    # Start building the 3D model
+    # --- Scale polygon from pixels to mm ---
+    # Assume 96 DPI → 1 pixel = 25.4/96 mm
+    PIXELS_PER_MM = 96 / 25.4
+    polygon_mm = scale_polygon_to_mm(contourResult.polygon, PIXELS_PER_MM)
 
-    # create a flat shape the size of the contour vector + [pegBeadRadiusInMm]mm
-    # Determine center of the contour vector. This will be the center for all transformations
-    # DO
-    # place pegs on the contour vector
-    #   Determine length of contour vector. Modulo 5mm to determine how many pegs can fit on the contour vector
-    #   Start placing pegs on the contour vector every ~[pegBeadRadiusInMm]mm.
-    #     If the TO BE PLACED peg is within [pegBeadRadiusInMm]mm of an already placed peg SKIP IT
-    #   Resize contour vector -[pegBeadRadiusInMm]mm around center
-    # WHILE contour vector is larger than [pegBeadRadiusInMm]mm
+    mesh = buildBeadsTemplateMesh(polygon_mm)
 
-    # DONE BUILDING MODEL
+    output_dir = os.path.join(app.root_path, f"uploads/processing/{g.request_id}")
+    os.makedirs(output_dir, exist_ok=True)
 
-    # exportModelToObj(3dModel)
+    stl_path = os.path.join(output_dir, "beads_template.stl")
+    obj_path = os.path.join(output_dir, "beads_template.obj")
+    mesh.export(stl_path)
+    mesh.export(obj_path)
 
-    return jsonify(success=True)
+    return jsonify({
+        "success": True,
+        "stlPath": f"uploads/processing/{g.request_id}/beads_template.stl",
+        "objPath": f"uploads/processing/{g.request_id}/beads_template.obj",
+    })
 
 
 @app.route("/previews", methods=["GET"])
@@ -193,7 +199,7 @@ def getPreviews():
 
 
 class SupportedThresholdMethod(Enum):
-    NIELS = 1
+    CUSTOM = 1
     LI = 2
     NIBLACK = 3
     SAUVOLA = 4
@@ -211,7 +217,7 @@ class EdgeContourResult:
 
 
 def getEdgeContour(
-    imageOriginal_np, filename, threshold_method=SupportedThresholdMethod.NIELS
+    imageOriginal_np, filename, threshold_method=SupportedThresholdMethod.CUSTOM
 ) -> EdgeContourResult:
     imageGrayScale_np = getImageGrayscale(imageOriginal_np, filename)
     saveImage(
@@ -265,7 +271,7 @@ def getCleanBinaryImage(imageGrayScale_np, threshold_method, filename):
     imageToThreshold = imageGrayScale_np
 
     match threshold_method:
-        case SupportedThresholdMethod.NIELS:
+        case SupportedThresholdMethod.CUSTOM:
             if isWhiteBackground:
                 thresholdValue = background_value * 0.8
                 binary = imageToThreshold < thresholdValue
@@ -417,6 +423,109 @@ def calculateBackgroundColor(image_np, corner_size=20):
     background_color = numpy.median(corners)
 
     return background_color
+
+
+def scale_polygon_to_mm(polygon: Polygon, pixels_per_mm: float) -> Polygon:
+    """Scale a pixel-space Shapely polygon to millimetres."""
+    coords = [(x / pixels_per_mm, y / pixels_per_mm) for x, y in polygon.exterior.coords]
+    return Polygon(coords)
+
+
+def create_peg(x: float, y: float, base_radius=1.25, top_radius=0.75, height=3.5, sections=16) -> trimesh.Trimesh:
+    """Create a single truncated-cone peg (flat-topped) at position (x, y) sitting on z=0."""
+    peg = trimesh.creation.cone(radius=base_radius, height=height, sections=sections)
+
+    vertices = peg.vertices.copy()
+
+    z_vals = vertices[:, 2]
+    top_z = z_vals.max()
+    top_mask = np.isclose(z_vals, top_z)
+
+    for i in np.where(top_mask)[0]:
+        xy = vertices[i, :2]
+        length = np.linalg.norm(xy)
+        if length > 0:
+            vertices[i, :2] = xy / length * top_radius
+
+    peg = trimesh.Trimesh(vertices=vertices, faces=peg.faces.copy(), process=False)
+    peg.apply_translation([x, y, 0])
+    return peg
+
+
+def place_pegs_on_polygon(polygon: Polygon, peg_spacing_mm=5.0) -> list:
+    """
+    Walk shrinking offsets of the polygon, placing pegs every ~peg_spacing_mm mm
+    along each ring, skipping any peg whose centre would be within peg_spacing_mm
+    of an already-placed peg.
+    """
+    pegs = []
+    placed_centres = []
+    current_polygon = polygon
+
+    while True:
+        ring = current_polygon.exterior
+        ring_length = ring.length
+
+        if ring_length < peg_spacing_mm:
+            break
+
+        distance = 0.0
+        while distance < ring_length:
+            pt = ring.interpolate(distance)
+            cx, cy = pt.x, pt.y
+
+            too_close = any(
+                np.hypot(cx - px, cy - py) < peg_spacing_mm
+                for px, py in placed_centres
+            )
+            if not too_close:
+                placed_centres.append((cx, cy))
+                pegs.append(create_peg(cx, cy))
+            distance += peg_spacing_mm
+
+        shrunk = current_polygon.buffer(-peg_spacing_mm)
+        if shrunk.is_empty:
+            break
+        if isinstance(shrunk, MultiPolygon):
+            shrunk = max(shrunk.geoms, key=lambda g: g.area)
+        current_polygon = shrunk
+
+    return pegs
+
+
+def buildBeadsTemplateMesh(polygon_mm: Polygon) -> trimesh.Trimesh:
+    """
+    Build the full 3-D template mesh:
+      - A flat base plate (polygon + 5 mm lip, 3 mm thick)
+      - Pegs placed on concentric shrinking offsets of the original polygon
+    """
+    BASE_THICKNESS_MM = 3.0
+    LIP_MM = 5.0
+    PEG_SPACING_MM = 5.0
+
+    # Expand polygon with a lip and extrude to base thickness
+    base_polygon = polygon_mm.buffer(LIP_MM)
+    if isinstance(base_polygon, MultiPolygon):
+        base_polygon = max(base_polygon.geoms, key=lambda g: g.area)
+
+    exterior_coords = np.array(base_polygon.exterior.coords)
+    path2d = trimesh.path.Path2D(
+        entities=[trimesh.path.entities.Line(np.arange(len(exterior_coords)))],
+        vertices=exterior_coords,
+    )
+    base_mesh = path2d.extrude(BASE_THICKNESS_MM).to_mesh()
+
+    # Place pegs on top of the base plate
+    pegs = place_pegs_on_polygon(polygon_mm, peg_spacing_mm=PEG_SPACING_MM)
+
+    if not pegs:
+        return base_mesh
+
+    for peg in pegs:
+        peg.apply_translation([0, 0, BASE_THICKNESS_MM])
+
+    combined = trimesh.util.concatenate([base_mesh] + pegs)
+    return combined
 
 
 @app.before_request
