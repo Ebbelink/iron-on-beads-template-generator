@@ -77,6 +77,23 @@
   </div>
 </div>
 
+<div class="download-models" style="display: none;">
+  <div class="row">
+    <div class="col-md-12">
+      <h3>Download your bead template!</h3>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6">
+      <!--<button id="download-stl-button" class="btn btn-primary download-model" data-option="stl" data-src=""><h2>DOWNLOAD STL</h2></button>-->
+      <a href="" id="download-stl-button" class="btn btn-primary download-model" data-option="stl" data-src=""><h2>DOWNLOAD STL</h2></a>
+    </div>
+    <div class="col-md-6">
+      <a href="" id="download-obj-button" class="btn btn-primary download-model" data-option="obj" data-src=""><h2>DOWNLOAD OBJ</h2></a>
+    </div>
+  </div>
+</div>
+
 <!-- Fullscreen Image Modal -->
 <div class="modal fade" id="imageModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-fullscreen">
@@ -107,6 +124,7 @@ $(document).ready(function() {
     const resetButton = $('#resetButton');
     const algorithPreviewImages = $(".algorith-preview-images");
     const uploadRow = $('.upload-row');
+    const downloadModelsRow = $('.download-models');
 
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -184,6 +202,7 @@ $(document).ready(function() {
       resetButton.hide();
       uploadRow.show();
       algorithPreviewImages.hide();
+      downloadModelsRow.hide();
       // dropZone.parent().show();
     }
 
@@ -253,9 +272,14 @@ $(document).ready(function() {
         success: function (response) {
           console.log('Template generation started successfully!');
           console.log(response);
+
+          $("#download-stl-button").attr("href", "{{ url_for('getPreviews') }}?previewPath=" + response.stlPath);
+          $("#download-obj-button").attr("href", "{{ url_for('getPreviews') }}?previewPath=" + response.objPath);
+          algorithPreviewImages.hide();
+          downloadModelsRow.show();
         },
         error: function (xhr, status, error) {
-          alert('Error starting template generation: ' + error);
+          alert('Error generating template: ' + error);
           console.error(error);
         }
       });

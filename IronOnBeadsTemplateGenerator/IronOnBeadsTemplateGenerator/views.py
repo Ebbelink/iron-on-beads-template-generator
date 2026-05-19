@@ -473,69 +473,66 @@ def create_peg(
     return peg
 
 
+def _walk_ring(ring, placed_centres: list, pegs: list, peg_spacing_mm: float):
+    """Walk a single ring and place pegs where spacing allows."""
+    ring_length = ring.length
+    if ring_length < peg_spacing_mm:
+        return
+
+    scan_step = peg_spacing_mm / 10.0
+    distance = 0.0
+    while distance < ring_length:
+        pt = ring.interpolate(distance)
+        cx, cy = pt.x, pt.y
+
+        too_close = any(
+            np.hypot(cx - px, cy - py) < peg_spacing_mm
+            for px, py in placed_centres
+        )
+        if not too_close:
+            placed_centres.append((cx, cy))
+            pegs.append(create_peg(cx, cy))
+        distance += scan_step
+
+
 def place_pegs_on_polygon(polygon: Polygon, peg_spacing_mm=5.0) -> list:
     """
     Place pegs using concentric shrinking rings so peg rows follow the shape
-    outline naturally.  After all rings are exhausted a gap-fill pass scans the
-    interior on a fine grid and places pegs in any region that was left empty
-    (e.g. concave pockets that the inward buffer clipped away).
-    """
-    from shapely.geometry import Point
+    outline naturally.
 
+    When an inward buffer splits a concave shape into multiple sub-polygons,
+    all pieces are kept and processed independently.  This ensures that concave
+    pockets — which would previously be silently discarded by keeping only the
+    largest piece — are fully filled.
+    """
     pegs = []
     placed_centres = []
-    current_polygon = polygon
 
-    # --- Phase 1: concentric shrinking rings ---
-    while True:
-        ring = current_polygon.exterior
-        ring_length = ring.length
+    # Work queue: list of polygons still to be shrunk.
+    # Seeded with the original polygon; grows when a buffer split produces
+    # multiple pieces.
+    pending: list[Polygon] = [polygon]
 
-        if ring_length < peg_spacing_mm:
-            break
+    while pending:
+        next_pending: list[Polygon] = []
 
-        # Fine scan step so no placeable position is skipped when a candidate
-        # is rejected due to proximity to pegs placed on a different ring.
-        scan_step = peg_spacing_mm / 10.0
-        distance = 0.0
-        while distance < ring_length:
-            pt = ring.interpolate(distance)
-            cx, cy = pt.x, pt.y
+        for current_polygon in pending:
+            # Walk the outer ring of this polygon piece
+            _walk_ring(current_polygon.exterior, placed_centres, pegs, peg_spacing_mm)
 
-            too_close = any(
-                np.hypot(cx - px, cy - py) < peg_spacing_mm
-                for px, py in placed_centres
-            )
-            if not too_close:
-                placed_centres.append((cx, cy))
-                pegs.append(create_peg(cx, cy))
-            distance += scan_step
+            # Shrink inward by one full peg spacing
+            shrunk = current_polygon.buffer(-peg_spacing_mm)
+            if shrunk.is_empty:
+                continue
 
-        shrunk = current_polygon.buffer(-peg_spacing_mm / 2)
-        if shrunk.is_empty:
-            break
-        if isinstance(shrunk, MultiPolygon):
-            shrunk = max(shrunk.geoms, key=lambda g: g.area)
-        current_polygon = shrunk
+            # If the shrink split the polygon, keep ALL pieces for the next
+            # iteration rather than discarding the smaller ones.
+            if isinstance(shrunk, MultiPolygon):
+                next_pending.extend(shrunk.geoms)
+            else:
+                next_pending.append(shrunk)
 
-    # --- Phase 2: gap-fill pass ---
-    # Scan the full bounding box on the same grid spacing and insert a peg
-    # wherever the point is inside the original polygon but has no neighbour
-    # within peg_spacing_mm (i.e. was missed by the ring phase).
-    placed_array = np.array(placed_centres) if placed_centres else None
-    min_x, min_y, max_x, max_y = polygon.bounds
-
-    y = min_y
-    while y <= max_y:
-        x = min_x
-        while x <= max_x:
-            if polygon.contains(Point(x, y)):
-                if placed_array is None or np.min(np.hypot(placed_array[:, 0] - x, placed_array[:, 1] - y)) >= peg_spacing_mm:
-                    placed_centres.append((x, y))
-                    placed_array = np.array(placed_centres)
-                    pegs.append(create_peg(x, y))
-            x += peg_spacing_mm
-        y += peg_spacing_mm
+        pending = next_pending
 
     return pegs
 
