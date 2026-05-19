@@ -168,8 +168,8 @@ def generateBeadsTemplatePost(algorithm):
     contourResult = getContour(cleanBinaryImage)
 
     # --- Scale polygon from pixels to mm ---
-    # Assume 96 DPI → 1 pixel = 25.4/96 mm
-    PIXELS_PER_MM = 96 / 25.4
+    # Assume 120 DPI → 1 pixel = 25.4/120 mm
+    PIXELS_PER_MM = 120 / 25.4
     polygon_mm = scale_polygon_to_mm(
         contourResult.polygon, PIXELS_PER_MM, contourResult.image_size[1]
     )
