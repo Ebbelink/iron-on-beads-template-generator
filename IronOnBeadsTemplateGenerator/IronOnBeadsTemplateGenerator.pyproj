@@ -24,6 +24,9 @@
     <PythonDebugWebServerCommandEnvironment>FLASK_ENV=development
 FLASK_DEBUG=True
 SERVER_PORT=5678</PythonDebugWebServerCommandEnvironment>
+    <TestFramework>pytest</TestFramework>
+    <UnitTestPattern>test*.py</UnitTestPattern>
+    <UnitTestRootDirectory>.</UnitTestRootDirectory>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -37,6 +40,7 @@ SERVER_PORT=5678</PythonDebugWebServerCommandEnvironment>
     <Compile Include="runserver.py" />
     <Compile Include="IronOnBeadsTemplateGenerator\__init__.py" />
     <Compile Include="IronOnBeadsTemplateGenerator\views.py" />
+    <Compile Include="IronOnBeadsTemplateGenerator\tests\test_generate_beads_template.py" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="IronOnBeadsTemplateGenerator\" />
@@ -48,8 +52,16 @@ SERVER_PORT=5678</PythonDebugWebServerCommandEnvironment>
     <Folder Include="IronOnBeadsTemplateGenerator\static\fonts\" />
     <Folder Include="IronOnBeadsTemplateGenerator\static\scripts\" />
     <Folder Include="IronOnBeadsTemplateGenerator\templates\" />
+    <Folder Include="IronOnBeadsTemplateGenerator\tests\" />
+    <Folder Include="IronOnBeadsTemplateGenerator\tests\images\" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="IronOnBeadsTemplateGenerator\tests\images\test-image-file-spotlight.jpeg" />
+    <Content Include="IronOnBeadsTemplateGenerator\tests\images\test-image-file.jpeg" />
+    <Content Include="IronOnBeadsTemplateGenerator\tests\images\test-image-knife-spotlight.jpeg" />
+    <Content Include="IronOnBeadsTemplateGenerator\tests\images\test-image-pen-spotlight.jpeg" />
+    <Content Include="IronOnBeadsTemplateGenerator\tests\images\test-image-pen.jpeg" />
+    <Content Include="IronOnBeadsTemplateGenerator\tests\images\test-image-safety-knife-spotlight.jpeg" />
     <Content Include="requirements.txt" />
     <Content Include="IronOnBeadsTemplateGenerator\static\content\bootstrap.css" />
     <Content Include="IronOnBeadsTemplateGenerator\static\content\bootstrap.min.css" />
@@ -77,6 +89,8 @@ SERVER_PORT=5678</PythonDebugWebServerCommandEnvironment>
     <Content Include="IronOnBeadsTemplateGenerator\templates\contact.html" />
     <Content Include="IronOnBeadsTemplateGenerator\templates\generate-template.html" />
     <Content Include="IronOnBeadsTemplateGenerator\templates\layout.html" />
+    <Content Include="IronOnBeadsTemplateGenerator\tests\images\test-image-bottle.jpeg" />
+    <Content Include="IronOnBeadsTemplateGenerator\tests\images\test-image-car.jpeg" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.Web.targets" />
   <!-- Specify pre- and post-build commands in the BeforeBuild and 
