@@ -64,7 +64,7 @@ stages:
         displayName: Provision infra and deploy (DEV)
         pool:
           vmImage: ubuntu-latest
-        environment: dev
+        environment: START-TO-SCALE-IT-MISC-BEADS-DEV
         strategy:
           runOnce:
             deploy:
@@ -99,7 +99,7 @@ stages:
         displayName: Provision infra and deploy (PRD)
         pool:
           vmImage: ubuntu-latest
-        environment: prd
+        environment: START-TO-SCALE-IT-MISC-BEADS-PRD
         strategy:
           runOnce:
             deploy:
