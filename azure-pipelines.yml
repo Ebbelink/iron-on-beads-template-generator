@@ -5,6 +5,7 @@ trigger:
 
 variables:
   IMAGE_NAME: ghcr.io/$(GHCR_USERNAME)/iron-on-beads-template-generator
+  CONFIGURATION_ITEM: START-TO-SCALE-IT-MISC-BEADS
   # Auto-incrementing patch counter, resets only if you change the seed
   PATCH_VERSION: '0'
   MAJOR_VERSION: '1'
@@ -35,8 +36,9 @@ stages:
                 TAG=$(date -u +'%Y-%m-%dT%H-%M-%S')
               fi
               echo "Computed tag: $TAG"
-              echo "##vso[task.setvariable variable=IMAGE_TAG]$TAG"
+              echo "##vso[task.setvariable variable=IMAGE_TAG;isOutput=true]$TAG"
             displayName: Determine image tag
+            name: tagStep
 
           - script: |
               docker build -t $(IMAGE_NAME):$(IMAGE_TAG) -t $(IMAGE_NAME):latest .
@@ -50,3 +52,73 @@ stages:
           - script: docker logout ghcr.io
             displayName: Log out of GHCR
             condition: always()
+  
+  - stage: DeployDev
+    displayName: Deploy to DEV
+    dependsOn: Build
+    condition: succeeded()
+    variables:
+      IMAGE_TAG: $[stageDependencies.Build.BuildAndPush.outputs['tagStep.IMAGE_TAG']]
+    jobs:
+      - deployment: DeployDev
+        displayName: Provision infra and deploy (DEV)
+        pool:
+          vmImage: ubuntu-latest
+        environment: dev
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+
+                - task: AzureResourceManagerTemplateDeployment@3
+                  displayName: Deploy Bicep — DEV
+                  inputs:
+                    deploymentScope: 'Resource Group'
+                    azureResourceManagerConnection: 'ARM-$(CONFIGURATION_ITEM)-DEV'
+                    action: 'Create Or Update Resource Group'
+                    resourceGroupName: 'RSG-$(CONFIGURATION_ITEM)-DEV'
+                    location: 'westeurope'
+                    templateLocation: 'Linked artifact'
+                    csmFile: 'IronOnBeadsTemplateGenerator/infra.bicep'
+                    overrideParameters: >
+                      -containerAppName "$(CONFIGURATION_ITEM)-DEV"
+                      -containerImage "$(IMAGE_NAME):$(IMAGE_TAG)"
+                      -targetPort 8000
+                    deploymentMode: 'Incremental'
+                    deploymentName: '$(CONFIGURATION_ITEM)-DEV-$(Build.BuildId)'
+
+  - stage: DeployPrd
+    displayName: Deploy to PRD
+    dependsOn: DeployDev
+    condition: and(succeeded(), eq(variables['Build.SourceBranchName'], 'main'))
+    variables:
+      IMAGE_TAG: $[stageDependencies.Build.BuildAndPush.outputs['tagStep.IMAGE_TAG']]
+    jobs:
+      - deployment: DeployPrd
+        displayName: Provision infra and deploy (PRD)
+        pool:
+          vmImage: ubuntu-latest
+        environment: prd
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+
+                - task: AzureResourceManagerTemplateDeployment@3
+                  displayName: Deploy Bicep — PRD
+                  inputs:
+                    deploymentScope: 'Resource Group'
+                    azureResourceManagerConnection: 'ARM-$(CONFIGURATION_ITEM)-PRD'
+                    action: 'Create Or Update Resource Group'
+                    resourceGroupName: 'RSG-$(CONFIGURATION_ITEM)-PRD'
+                    location: 'westeurope'
+                    templateLocation: 'Linked artifact'
+                    csmFile: 'IronOnBeadsTemplateGenerator/infra.bicep'
+                    overrideParameters: >
+                      -containerAppName "$(CONFIGURATION_ITEM)-PRD"
+                      -containerImage "$(IMAGE_NAME):$(IMAGE_TAG)"
+                      -targetPort 8000
+                    deploymentMode: 'Incremental'
+                    deploymentName: '$(CONFIGURATION_ITEM)-PRD-$(Build.BuildId)'
