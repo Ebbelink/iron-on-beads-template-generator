@@ -58,6 +58,7 @@ SERVER_PORT=5678</PythonDebugWebServerCommandEnvironment>
   </ItemGroup>
   <ItemGroup>
     <Content Include="Dockerfile" />
+    <Content Include="infra.bicep" />
     <Content Include="IronOnBeadsTemplateGenerator\tests\images\test-image-file-spotlight.jpeg" />
     <Content Include="IronOnBeadsTemplateGenerator\tests\images\test-image-file.jpeg" />
     <Content Include="IronOnBeadsTemplateGenerator\tests\images\test-image-knife-spotlight.jpeg" />
