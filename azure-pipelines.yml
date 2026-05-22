@@ -41,11 +41,11 @@ stages:
             name: tagStep
 
           - script: |
-              docker build -t $(IMAGE_NAME):$(IMAGE_TAG) -t $(IMAGE_NAME):latest .
+              docker build -t $(IMAGE_NAME):$(tagStep.IMAGE_TAG) -t $(IMAGE_NAME):latest .
             displayName: Build Docker image
 
           - script: |
-              docker push $(IMAGE_NAME):$(IMAGE_TAG)
+              docker push $(IMAGE_NAME):$(tagStep.IMAGE_TAG)
               docker push $(IMAGE_NAME):latest
             displayName: Push Docker image
 
