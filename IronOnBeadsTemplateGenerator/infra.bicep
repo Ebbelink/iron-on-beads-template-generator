@@ -8,7 +8,7 @@ param location string = resourceGroup().location
 param containerImage string
 
 @description('Container CPU cores')
-param cpu float = 0.25
+param cpu string = '0.25'
 
 @description('Container memory')
 param memory string = '0.5Gi'
@@ -49,7 +49,7 @@ resource managedEnvironment 'Microsoft.App/managedEnvironments@2023-05-01' = {
       destination: 'log-analytics'
       logAnalyticsConfiguration: {
         customerId: logAnalytics.properties.customerId
-        sharedKey: listKeys(logAnalytics.id, logAnalytics.apiVersion).primarySharedKey
+        sharedKey: logAnalytics.listKeys().primarySharedKey
       }
     }
   }
