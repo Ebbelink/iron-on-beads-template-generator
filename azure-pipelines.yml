@@ -31,12 +31,12 @@ stages:
 
           - bash: |
               if [ "$(Build.SourceBranchName)" = "main" ]; then
-                TAG="$(MAJOR_VERSION).$(MINOR_VERSION).$(PATCH_VERSION)"
+                IMAGE_TAG="$(MAJOR_VERSION).$(MINOR_VERSION).$(PATCH_VERSION)"
               else
-                TAG=$(date -u +'%Y-%m-%dT%H-%M-%S')
+                IMAGE_TAG=$(date -u +'%Y-%m-%dT%H-%M-%S')
               fi
-              echo "Computed tag: $TAG"
-              echo "##vso[task.setvariable variable=IMAGE_TAG;isOutput=true]$TAG"
+              echo "Computed tag: $IMAGE_TAG"
+              echo "##vso[task.setvariable variable=IMAGE_TAG;isOutput=true]$IMAGE_TAG"
             displayName: Determine image tag
             name: tagStep
 
