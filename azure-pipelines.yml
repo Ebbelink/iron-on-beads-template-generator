@@ -1,0 +1,52 @@
+trigger:
+  branches:
+    include:
+      - '*'
+
+variables:
+  IMAGE_NAME: ghcr.io/$(GHCR_USERNAME)/iron-on-beads-template-generator
+  # Auto-incrementing patch counter, resets only if you change the seed
+  PATCH_VERSION: '0'
+  MAJOR_VERSION: '1'
+  MINOR_VERSION: $[counter('release-version', 0)]
+
+stages:
+  - stage: Build
+    displayName: Build & Push Docker image
+    jobs:
+      - job: BuildAndPush
+        displayName: Build and push to GHCR
+        pool:
+          vmImage: ubuntu-latest
+
+        steps:
+          - checkout: self
+
+          - script: |
+              echo "$(GHCR_TOKEN)" | docker login ghcr.io \
+                --username "$(GHCR_USERNAME)" \
+                --password-stdin
+            displayName: Log in to GHCR
+
+          - bash: |
+              if [ "$(Build.SourceBranchName)" = "main" ]; then
+                TAG="$(MAJOR_VERSION).$(MINOR_VERSION).$(PATCH_VERSION)"
+              else
+                TAG=$(date -u +'%Y-%m-%dT%H-%M-%S')
+              fi
+              echo "Computed tag: $TAG"
+              echo "##vso[task.setvariable variable=IMAGE_TAG]$TAG"
+            displayName: Determine image tag
+
+          - script: |
+              docker build -t $(IMAGE_NAME):$(IMAGE_TAG) -t $(IMAGE_NAME):latest .
+            displayName: Build Docker image
+
+          - script: |
+              docker push $(IMAGE_NAME):$(IMAGE_TAG)
+              docker push $(IMAGE_NAME):latest
+            displayName: Push Docker image
+
+          - script: docker logout ghcr.io
+            displayName: Log out of GHCR
+            condition: always()
