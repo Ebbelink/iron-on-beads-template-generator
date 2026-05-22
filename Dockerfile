@@ -16,7 +16,8 @@ RUN pip install --upgrade pip \
 FROM python:3.12-slim AS runtime
 
 # Non-root user — required for hardened containers
-RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+RUN addgroup --system appgroup \
+ && adduser --system --ingroup appgroup --home /home/appuser appuser
 
 WORKDIR /app
 
@@ -45,6 +46,5 @@ CMD ["gunicorn", \
      "--bind", "0.0.0.0:8000", \
      "--workers", "2", \
      "--timeout", "120", \
-     "--access-logfile", "-", \
      "--error-logfile", "-", \
      "IronOnBeadsTemplateGenerator:app"]
