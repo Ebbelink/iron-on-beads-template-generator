@@ -19,17 +19,15 @@ param targetPort int = 8000
 @description('Container App Environment name')
 param environmentName string = 'containerapp-env'
 
-@description('Application Insights name')
-param appInsightsName string = 'ai-${uniqueString(resourceGroup().id)}'
-
-@description('Log Analytics Workspace name')
-param logAnalyticsName string = 'log-${uniqueString(resourceGroup().id)}'
-
 @description('Minimum replicas')
 param minReplicas int = 0
 
 @description('Maximum replicas')
 param maxReplicas int = 1
+
+var lowerContainerAppName = toLower(containerAppName)
+var appInsightsName = 'ai-${lowerContainerAppName}'
+var logAnalyticsName = 'log-${lowerContainerAppName}'
 
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   name: logAnalyticsName
@@ -77,7 +75,7 @@ param ghcrUsername string
 param ghcrToken string
 
 resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
-  name: toLower(containerAppName)
+  name: lowerContainerAppName
   location: location
   properties: {
     managedEnvironmentId: managedEnvironment.id
