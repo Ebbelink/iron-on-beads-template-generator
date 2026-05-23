@@ -57,7 +57,6 @@ SERVER_PORT=5678</PythonDebugWebServerCommandEnvironment>
     <Folder Include="IronOnBeadsTemplateGenerator\tests\images\" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Dockerfile" />
     <Content Include="infra.bicep" />
     <Content Include="IronOnBeadsTemplateGenerator\tests\images\test-image-file-spotlight.jpeg" />
     <Content Include="IronOnBeadsTemplateGenerator\tests\images\test-image-file.jpeg" />
@@ -65,7 +64,6 @@ SERVER_PORT=5678</PythonDebugWebServerCommandEnvironment>
     <Content Include="IronOnBeadsTemplateGenerator\tests\images\test-image-pen-spotlight.jpeg" />
     <Content Include="IronOnBeadsTemplateGenerator\tests\images\test-image-pen.jpeg" />
     <Content Include="IronOnBeadsTemplateGenerator\tests\images\test-image-safety-knife-spotlight.jpeg" />
-    <Content Include="requirements.txt" />
     <Content Include="IronOnBeadsTemplateGenerator\static\content\bootstrap.css" />
     <Content Include="IronOnBeadsTemplateGenerator\static\content\bootstrap.min.css" />
     <Content Include="IronOnBeadsTemplateGenerator\static\content\site.css" />

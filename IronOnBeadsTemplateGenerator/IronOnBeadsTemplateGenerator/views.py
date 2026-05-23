@@ -381,6 +381,10 @@ def saveImage(image, filename, directory="uploads", prefix="", postfix="") -> st
 
 
 def getImageGrayscale(imageOriginal_np, originalFileName=""):
+    # Strip alpha channel if present (e.g. PNG with transparency) rgb2gray expects 3 channels (RGB); RGBA will cause a dimension mismatch
+    if imageOriginal_np.ndim == 3 and imageOriginal_np.shape[2] == 4:
+        imageOriginal_np = imageOriginal_np[:, :, :3]
+
     imageGrayScale = color.rgb2gray(imageOriginal_np)
 
     if originalFileName:
