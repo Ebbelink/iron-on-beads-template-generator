@@ -89,6 +89,10 @@ stages:
                       -ghcrToken "$(GHCR_TOKEN)"
                     deploymentMode: 'Incremental'
                     deploymentName: '$(CONFIGURATION_ITEM)-DEV-$(Build.BuildId)'
+                    deploymentOutputs: bicepOutputs
+
+                - bash: echo '$(bicepOutputs)'
+                  displayName: Print DEV deployment outputs
 
   - stage: DeployPrd
     displayName: Deploy to PRD
@@ -126,3 +130,7 @@ stages:
                       -ghcrToken "$(GHCR_TOKEN)"
                     deploymentMode: 'Incremental'
                     deploymentName: '$(CONFIGURATION_ITEM)-PRD-$(Build.BuildId)'
+                    deploymentOutputs: bicepOutputs
+
+                - bash: echo '$(bicepOutputs)'
+                  displayName: Print PRD deployment outputs
