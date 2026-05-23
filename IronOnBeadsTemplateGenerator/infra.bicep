@@ -70,7 +70,7 @@ resource managedEnvironment 'Microsoft.App/managedEnvironments@2023-05-01' = {
 }
 
 resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
-  name: containerAppName
+  name: toLower(containerAppName)
   location: location
   properties: {
     managedEnvironmentId: managedEnvironment.id
