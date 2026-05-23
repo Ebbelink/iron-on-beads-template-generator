@@ -69,6 +69,13 @@ resource managedEnvironment 'Microsoft.App/managedEnvironments@2023-05-01' = {
   }
 }
 
+@description('GitHub username for GHCR authentication')
+param ghcrUsername string
+
+@description('GitHub PAT with read:packages scope for pulling from GHCR')
+@secure()
+param ghcrToken string
+
 resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
   name: toLower(containerAppName)
   location: location
@@ -76,6 +83,22 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
     managedEnvironmentId: managedEnvironment.id
 
     configuration: {
+      // Store the PAT as a Container App secret
+      secrets: [
+        {
+          name: 'ghcr-token'
+          value: ghcrToken
+        }
+      ]
+
+      registries: [
+        {
+          server: 'ghcr.io'
+          username: ghcrUsername
+          passwordSecretRef: 'ghcr-token'
+        }
+      ]
+
       ingress: {
         external: true
         targetPort: targetPort

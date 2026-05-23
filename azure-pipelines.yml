@@ -85,6 +85,8 @@ stages:
                       -containerAppName "$(CONFIGURATION_ITEM)-DEV"
                       -containerImage "$(IMAGE_NAME):$(IMAGE_TAG)"
                       -targetPort 8000
+                      -ghcrUsername "$(GHCR_USERNAME)"
+                      -ghcrToken "$(GHCR_TOKEN)"
                     deploymentMode: 'Incremental'
                     deploymentName: '$(CONFIGURATION_ITEM)-DEV-$(Build.BuildId)'
 
@@ -120,5 +122,7 @@ stages:
                       -containerAppName "$(CONFIGURATION_ITEM)-PRD"
                       -containerImage "$(IMAGE_NAME):$(IMAGE_TAG)"
                       -targetPort 8000
+                      -ghcrUsername "$(GHCR_USERNAME)"
+                      -ghcrToken "$(GHCR_TOKEN)"
                     deploymentMode: 'Incremental'
                     deploymentName: '$(CONFIGURATION_ITEM)-PRD-$(Build.BuildId)'
