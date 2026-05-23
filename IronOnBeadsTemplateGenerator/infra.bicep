@@ -46,11 +46,7 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
 resource managedEnvironment 'Microsoft.App/managedEnvironments@2023-05-01' = {
   name: environmentName
   location: location
-  properties: {
-    appLogsConfiguration: {
-      destination: 'none'
-    }
-  }
+  properties: {}
 }
 
 // Container App
