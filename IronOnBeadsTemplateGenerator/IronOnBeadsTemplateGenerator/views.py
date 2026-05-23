@@ -457,20 +457,19 @@ def scale_polygon_to_mm(
 def create_peg(
     x: float, y: float, base_radius=1.25, top_radius=0.75, height=3.5, sections=16
 ) -> trimesh.Trimesh:
-    """Create a single truncated-cone peg (flat-topped) at position (x, y) sitting on z=0."""
-    peg = trimesh.creation.cone(radius=base_radius, height=height, sections=sections)
+    """Create a single peg at position (x, y) sitting on z=0.
+
+    Built from a cylinder with the top cap vertices scaled inward so the peg
+    tapers from base_radius at the bottom to top_radius at the top.
+    """
+    peg = trimesh.creation.cylinder(radius=base_radius, height=height, sections=sections)
 
     vertices = peg.vertices.copy()
+    top_z = vertices[:, 2].max()
+    top_mask = np.isclose(vertices[:, 2], top_z)
 
-    z_vals = vertices[:, 2]
-    top_z = z_vals.max()
-    top_mask = np.isclose(z_vals, top_z)
-
-    for i in np.where(top_mask)[0]:
-        xy = vertices[i, :2]
-        length = np.linalg.norm(xy)
-        if length > 0:
-            vertices[i, :2] = xy / length * top_radius
+    # Scale top cap XY from base_radius → top_radius
+    vertices[top_mask, :2] *= top_radius / base_radius
 
     peg = trimesh.Trimesh(vertices=vertices, faces=peg.faces.copy(), process=False)
     peg.apply_translation([x, y, 0])
