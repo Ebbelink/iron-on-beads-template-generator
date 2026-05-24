@@ -12,6 +12,8 @@ COPY requirements.txt .
 RUN pip install --upgrade pip \
  && pip install --no-cache-dir --prefix=/install -r requirements.txt
 
+COPY IronOnBeadsTemplateGenerator/ ./IronOnBeadsTemplateGenerator/
+RUN PYTHONPATH=/build/IronOnBeadsTemplateGenerator:/install/lib/python3.12/site-packages /install/bin/pytest IronOnBeadsTemplateGenerator/
 
 FROM python:3.12-slim AS runtime
 

@@ -200,7 +200,10 @@ $(document).ready(function() {
       previewImage.attr('src', '');
       previewContainer.hide();
       resetButton.hide();
+
+      uploadButton.prop('disabled', false).text('Generate Beads Template');
       uploadRow.show();
+
       algorithPreviewImages.hide();
       downloadModelsRow.hide();
 
