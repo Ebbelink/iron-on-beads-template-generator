@@ -8,7 +8,7 @@ param location string = resourceGroup().location
 param containerImage string
 
 @description('Container CPU cores (e.g. "0.25", "0.5", "1.0")')
-param cpu string = '0.25'
+param cpu string = '0.5'
 
 @description('Container memory')
 param memory string = '0.5Gi'
