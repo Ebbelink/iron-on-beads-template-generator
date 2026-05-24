@@ -11,7 +11,7 @@ param containerImage string
 param cpu string = '0.5'
 
 @description('Container memory')
-param memory string = '0.5Gi'
+param memory string = '1.0Gi'
 
 @description('Container port')
 param targetPort int = 8000
