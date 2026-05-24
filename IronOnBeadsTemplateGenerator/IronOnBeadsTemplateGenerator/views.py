@@ -56,14 +56,18 @@ def generateBeadsTemplate():
 @app.route("/generate-template-outlines", methods=["POST"])
 def generateTemplateOutlines():
     """START THE MAGIC!"""
-    app.logger.info("Received generate-template-outlines request, request_id=%s", g.request_id)
+    app.logger.info(
+        "Received generate-template-outlines request, request_id=%s", g.request_id
+    )
 
     if "image" not in request.files:
         app.logger.warning("No image field in request.files")
         return jsonify({"error": "No image file provided"}), 400
 
     file = request.files["image"]
-    app.logger.info("File object: filename=%s, content_type=%s", file.filename, file.content_type)
+    app.logger.info(
+        "File object: filename=%s, content_type=%s", file.filename, file.content_type
+    )
 
     if file.filename == "":
         app.logger.warning("Empty filename, exit early")
@@ -82,18 +86,17 @@ def generateTemplateOutlines():
             400,
         )
 
-    try:
-        # Respect EXIF orientation (e.g. iPhone photos) before any processing
-        # pil_image = Image.open(file)
-        # fileInfoOriginal = persistFile(file)
-        imageOriginal_np = io.imread(file)
-        app.logger.info("Opened image: shape=%s, dtype=%s", imageOriginal_np.shape, imageOriginal_np.dtype)
-        # pil_image = ImageOps.exif_transpose(pil_image)
-        # imageOriginal_np = numpy.array(pil_image.convert("RGB"))
-        app.logger.info("Converted to numpy array: shape=%s, dtype=%s", imageOriginal_np.shape, imageOriginal_np.dtype)
-    except Exception as e:
-        app.logger.exception("Failed to open or decode uploaded image: %s", e)
-        return jsonify({"error": "Could not read image file"}), 422
+    imageOriginal_np = io.imread(file)
+    app.logger.info(
+        "Opened image: shape=%s, dtype=%s",
+        imageOriginal_np.shape,
+        imageOriginal_np.dtype,
+    )
+    app.logger.info(
+        "Converted to numpy array: shape=%s, dtype=%s",
+        imageOriginal_np.shape,
+        imageOriginal_np.dtype,
+    )
 
     try:
         app.logger.info("Starting image processing pipeline")
@@ -141,7 +144,10 @@ def generateTemplateOutlines():
         )
         app.logger.info("Completed SAUVOLA contour detection")
         image_with_polygon = drawPolygonOnImage(
-            imageOriginal_np, edgeContourSauvola.polygon, color=(255, 0, 0), line_width=3
+            imageOriginal_np,
+            edgeContourSauvola.polygon,
+            color=(255, 0, 0),
+            line_width=3,
         )
         overlaySauvola = saveImage(
             image_with_polygon,
@@ -152,7 +158,9 @@ def generateTemplateOutlines():
         )
         app.logger.info("Image processing complete for request_id=%s", g.request_id)
     except Exception as e:
-        app.logger.exception("Failed to process image for request %s: %s", g.request_id, e)
+        app.logger.exception(
+            "Failed to process image for request %s: %s", g.request_id, e
+        )
         return jsonify({"error": "Image processing failed"}), 500
 
     return (
@@ -486,7 +494,9 @@ def create_peg(
     Built from a cylinder with the top cap vertices scaled inward so the peg
     tapers from base_radius at the bottom to top_radius at the top.
     """
-    peg = trimesh.creation.cylinder(radius=base_radius, height=height, sections=sections)
+    peg = trimesh.creation.cylinder(
+        radius=base_radius, height=height, sections=sections
+    )
 
     vertices = peg.vertices.copy()
     top_z = vertices[:, 2].max()
@@ -513,8 +523,7 @@ def _walk_ring(ring, placed_centres: list, pegs: list, peg_spacing_mm: float):
         cx, cy = pt.x, pt.y
 
         too_close = any(
-            np.hypot(cx - px, cy - py) < peg_spacing_mm
-            for px, py in placed_centres
+            np.hypot(cx - px, cy - py) < peg_spacing_mm for px, py in placed_centres
         )
         if not too_close:
             placed_centres.append((cx, cy))
@@ -609,4 +618,4 @@ def assign_request_id():
 @app.after_request
 def append_request_id(response):
     response.headers["X-REQUEST-ID"] = getattr(g, "request_id", None)
-    return response     
+    return response
