@@ -56,14 +56,17 @@ def generateBeadsTemplate():
 @app.route("/generate-template-outlines", methods=["POST"])
 def generateTemplateOutlines():
     """START THE MAGIC!"""
-    pegBeadRadiusInMm = 5
+    app.logger.info("Received generate-template-outlines request, request_id=%s", g.request_id)
 
     if "image" not in request.files:
+        app.logger.warning("No image field in request.files")
         return jsonify({"error": "No image file provided"}), 400
 
     file = request.files["image"]
+    app.logger.info("File object: filename=%s, content_type=%s", file.filename, file.content_type)
 
     if file.filename == "":
+        app.logger.warning("Empty filename, exit early")
         return jsonify({"error": "No file selected"}), 400
 
     if not (
@@ -71,6 +74,7 @@ def generateTemplateOutlines():
         and file.filename.rsplit(".", 1)[1].lower()
         in {"png", "jpg", "jpeg", "gif", "bmp"}
     ):
+        app.logger.warning("Invalid file extension. Received: %s", file.filename)
         return (
             jsonify(
                 {"error": "Invalid file type. Allowed types: png, jpg, jpeg, gif, bmp"}
@@ -78,58 +82,78 @@ def generateTemplateOutlines():
             400,
         )
 
-    # fileInfoOriginal = persistFile(file)
-    imageOriginal_np = io.imread(file)
-    saveImage(
-        imageOriginal_np,
-        file.filename,
-        f"uploads/processing/{g.request_id}",
-        "original",
-    )
+    try:
+        # Respect EXIF orientation (e.g. iPhone photos) before any processing
+        # pil_image = Image.open(file)
+        # fileInfoOriginal = persistFile(file)
+        imageOriginal_np = io.imread(file)
+        app.logger.info("Opened image: shape=%s, dtype=%s", imageOriginal_np.shape, imageOriginal_np.dtype)
+        # pil_image = ImageOps.exif_transpose(pil_image)
+        # imageOriginal_np = numpy.array(pil_image.convert("RGB"))
+        app.logger.info("Converted to numpy array: shape=%s, dtype=%s", imageOriginal_np.shape, imageOriginal_np.dtype)
+    except Exception as e:
+        app.logger.exception("Failed to open or decode uploaded image: %s", e)
+        return jsonify({"error": "Could not read image file"}), 422
 
-    edgeContourCustom = getEdgeContour(
-        imageOriginal_np, file.filename, SupportedThresholdMethod.CUSTOM
-    )
-    image_with_polygon = drawPolygonOnImage(
-        imageOriginal_np, edgeContourCustom.polygon, color=(255, 0, 0), line_width=3
-    )
-    overlayCustom = saveImage(
-        image_with_polygon,
-        file.filename,
-        f"uploads/processing/{g.request_id}",
-        "",
-        "polygon_overlay_custom",
-    )
+    try:
+        app.logger.info("Starting image processing pipeline")
+        saveImage(
+            imageOriginal_np,
+            file.filename,
+            f"uploads/processing/{g.request_id}",
+            "original",
+        )
 
-    edgeContourLi = getEdgeContour(
-        imageOriginal_np, file.filename, SupportedThresholdMethod.LI
-    )
-    image_with_polygon = drawPolygonOnImage(
-        imageOriginal_np, edgeContourLi.polygon, color=(255, 0, 0), line_width=3
-    )
-    overlayLi = saveImage(
-        image_with_polygon,
-        file.filename,
-        f"uploads/processing/{g.request_id}",
-        "",
-        "polygon_overlay_li",
-    )
+        edgeContourCustom = getEdgeContour(
+            imageOriginal_np, file.filename, SupportedThresholdMethod.CUSTOM
+        )
+        app.logger.info("Completed CUSTOM contour detection")
+        image_with_polygon = drawPolygonOnImage(
+            imageOriginal_np, edgeContourCustom.polygon, color=(255, 0, 0), line_width=3
+        )
+        overlayCustom = saveImage(
+            image_with_polygon,
+            file.filename,
+            f"uploads/processing/{g.request_id}",
+            "",
+            "polygon_overlay_custom",
+        )
 
-    # getEdgeContour(imageOriginal_np, file.filename, SupportedThresholdMethod.NIBLACK)
+        edgeContourLi = getEdgeContour(
+            imageOriginal_np, file.filename, SupportedThresholdMethod.LI
+        )
+        app.logger.info("Completed LI contour detection")
+        image_with_polygon = drawPolygonOnImage(
+            imageOriginal_np, edgeContourLi.polygon, color=(255, 0, 0), line_width=3
+        )
+        overlayLi = saveImage(
+            image_with_polygon,
+            file.filename,
+            f"uploads/processing/{g.request_id}",
+            "",
+            "polygon_overlay_li",
+        )
 
-    edgeContourSauvola = getEdgeContour(
-        imageOriginal_np, file.filename, SupportedThresholdMethod.SAUVOLA
-    )
-    image_with_polygon = drawPolygonOnImage(
-        imageOriginal_np, edgeContourSauvola.polygon, color=(255, 0, 0), line_width=3
-    )
-    overlaySauvola = saveImage(
-        image_with_polygon,
-        file.filename,
-        f"uploads/processing/{g.request_id}",
-        "",
-        "polygon_overlay_sauvola",
-    )
+        # getEdgeContour(imageOriginal_np, file.filename, SupportedThresholdMethod.NIBLACK)
+
+        edgeContourSauvola = getEdgeContour(
+            imageOriginal_np, file.filename, SupportedThresholdMethod.SAUVOLA
+        )
+        app.logger.info("Completed SAUVOLA contour detection")
+        image_with_polygon = drawPolygonOnImage(
+            imageOriginal_np, edgeContourSauvola.polygon, color=(255, 0, 0), line_width=3
+        )
+        overlaySauvola = saveImage(
+            image_with_polygon,
+            file.filename,
+            f"uploads/processing/{g.request_id}",
+            "",
+            "polygon_overlay_sauvola",
+        )
+        app.logger.info("Image processing complete for request_id=%s", g.request_id)
+    except Exception as e:
+        app.logger.exception("Failed to process image for request %s: %s", g.request_id, e)
+        return jsonify({"error": "Image processing failed"}), 500
 
     return (
         jsonify(
@@ -585,4 +609,4 @@ def assign_request_id():
 @app.after_request
 def append_request_id(response):
     response.headers["X-REQUEST-ID"] = getattr(g, "request_id", None)
-    return response
+    return response     

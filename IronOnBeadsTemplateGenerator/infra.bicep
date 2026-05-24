@@ -101,7 +101,6 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
         external: true
         targetPort: targetPort
         transport: 'auto'
-        maxBodySize: 20971520  // 20 MB — accommodates large iPhone photos
       }
     }
 
