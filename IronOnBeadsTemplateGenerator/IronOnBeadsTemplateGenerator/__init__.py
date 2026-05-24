@@ -4,6 +4,7 @@ The flask application package.
 
 import logging
 import sys
+import os
 
 logging.basicConfig(
     stream=sys.stdout,
@@ -11,21 +12,14 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 
+if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
+    from azure.monitor.opentelemetry import configure_azure_monitor
+    configure_azure_monitor()
+
 from flask import Flask
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
 
-# Wire up Azure Monitor telemetry if the connection string is present.
-# APPLICATIONINSIGHTS_CONNECTION_STRING is injected by infra.bicep as an env var.
-import os
-if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
-    from azure.monitor.opentelemetry import configure_azure_monitor
-    configure_azure_monitor()  # picks up APPLICATIONINSIGHTS_CONNECTION_STRING automatically
-
-# Filter out internal noise from OpenTelemetry and Azure Monitor exporters.
-# Attached to the root StreamHandler (not the loggers) so it intercepts records
-# from all child loggers (e.g. azure.core.pipeline.policies.http_logging_policy)
-# that propagate up to the root handler added by basicConfig above.
 _EXCLUDED_PREFIXES = ("opentelemetry", "azure.monitor", "azure.core")
 
 class _ExcludeInternalLogsFilter(logging.Filter):
