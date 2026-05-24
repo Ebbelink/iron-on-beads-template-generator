@@ -2,8 +2,18 @@
 The flask application package.
 """
 
+import logging
+import sys
+
+logging.basicConfig(
+    stream=sys.stdout,
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+
 from flask import Flask
 app = Flask(__name__)
+app.logger.setLevel(logging.INFO)
 
 # Wire up Azure Monitor telemetry if the connection string is present.
 # APPLICATIONINSIGHTS_CONNECTION_STRING is injected by infra.bicep as an env var.

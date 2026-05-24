@@ -203,7 +203,10 @@ $(document).ready(function() {
       uploadRow.show();
       algorithPreviewImages.hide();
       downloadModelsRow.hide();
-      // dropZone.parent().show();
+
+      $("#algorith-option-1").attr("src", "");
+      $("#algorith-option-2").attr("src", "");
+      $("#algorith-option-3").attr("src", "");
     }
 
     // Upload button handler
@@ -230,6 +233,7 @@ $(document).ready(function() {
                 console.log(response);
                 xRequestId = response.xRequestId;
 
+                // set the src of the 3 preview images so the user can pick
                 $("#algorith-option-1").attr("src", "{{ url_for('getPreviews') }}?previewPath=" + encodeURIComponent(response.option1.imagePath));
                 $("#algorith-option-1-button").attr("data-algorithm", response.option1.algorithm);
                 $("#algorith-option-2").attr("src", "{{ url_for('getPreviews') }}?previewPath=" + encodeURIComponent(response.option2.imagePath));
@@ -237,16 +241,18 @@ $(document).ready(function() {
                 $("#algorith-option-3").attr("src", "{{ url_for('getPreviews') }}?previewPath=" + encodeURIComponent(response.option3.imagePath));
                 $("#algorith-option-3-button").attr("data-algorithm", response.option3.algorithm);
 
-                // set the src of the 3 preview images so the user can pick
+                uploadButton.prop('disabled', false).text('Generate Beads Template');
+                algorithPreviewImages.show();
+                uploadRow.hide();
             },
             error: function(xhr, status, error) {
                 alert('Error generating template: ' + error);
                 console.error(error);
             },
             complete: function() {
-                uploadButton.prop('disabled', false).text('Generate Beads Template');
-                algorithPreviewImages.show();
-                uploadRow.hide();
+                // uploadButton.prop('disabled', false).text('Generate Beads Template');
+                // algorithPreviewImages.show();
+                // uploadRow.hide();
             }
         });
     });
