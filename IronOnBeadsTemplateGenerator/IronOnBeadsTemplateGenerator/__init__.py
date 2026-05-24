@@ -23,13 +23,17 @@ if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
     configure_azure_monitor()  # picks up APPLICATIONINSIGHTS_CONNECTION_STRING automatically
 
 # Filter out internal noise from OpenTelemetry and Azure Monitor exporters.
-# Applied after configure_azure_monitor() because it adds handlers directly to
-# these child loggers; a root-level filter would not intercept those.
+# Attached to the root StreamHandler (not the loggers) so it intercepts records
+# from all child loggers (e.g. azure.core.pipeline.policies.http_logging_policy)
+# that propagate up to the root handler added by basicConfig above.
 _EXCLUDED_PREFIXES = ("opentelemetry", "azure.monitor", "azure.core")
 
 class _ExcludeInternalLogsFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         return record.levelno >= logging.ERROR or not any(record.name.startswith(p) for p in _EXCLUDED_PREFIXES)
+
+for _handler in logging.getLogger().handlers:
+    _handler.addFilter(_ExcludeInternalLogsFilter())
 
 for _prefix in _EXCLUDED_PREFIXES:
     logging.getLogger(_prefix).addFilter(_ExcludeInternalLogsFilter())
