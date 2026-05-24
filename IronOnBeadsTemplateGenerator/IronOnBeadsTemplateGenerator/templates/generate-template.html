@@ -126,6 +126,13 @@ $(document).ready(function() {
     const uploadRow = $('.upload-row');
     const downloadModelsRow = $('.download-models');
 
+    // Helper function to track events with Application Insights
+    function trackEvent(eventName, properties) {
+        if (window.appInsights) {
+            window.appInsights.trackEvent({ name: eventName, properties: properties });
+        }
+    }
+
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.on(eventName, function(e) {
@@ -151,11 +158,13 @@ $(document).ready(function() {
     dropZone.on('drop', function(e) {
         const dt = e.originalEvent.dataTransfer;
         const files = dt.files;
+        trackEvent('ImageDropped', { fileCount: files.length });
         handleFiles(files);
     });
 
     // Handle file input
     fileInput.on('change', function() {
+        trackEvent('ImageBrowsed', { fileCount: this.files.length });
         handleFiles(this.files);
     });
 
@@ -168,10 +177,16 @@ $(document).ready(function() {
             // Validate file type
             if (!file.type.startsWith('image/')) {
                 alert('Please upload an image file.');
+                trackEvent('InvalidFileType', { fileType: file.type });
                 return;
             }
 
             selectedFile = file;
+            trackEvent('ImageSelected', { 
+                fileSize: file.size,
+                fileType: file.type,
+                fileName: file.name
+            });
 
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -185,11 +200,13 @@ $(document).ready(function() {
     }
 
     resetButton.on('click', function () {
+      trackEvent('ResetClicked');
       reset();
     });
 
     // Clear button handler
     clearButton.on('click', function() {
+      trackEvent('ClearImageClicked');
       reset();
     });
 
@@ -225,6 +242,12 @@ $(document).ready(function() {
         // Disable button and show loading state
         uploadButton.prop('disabled', true).text('Generating...');
 
+        const startTime = performance.now();
+        trackEvent('TemplateGenerationStarted', {
+            fileSize: selectedFile.size,
+            fileType: selectedFile.type
+        });
+
         $.ajax({
             url: '{{ url_for("generateTemplateOutlines") }}',
             type: 'POST',
@@ -232,9 +255,18 @@ $(document).ready(function() {
             processData: false,
             contentType: false,
             success: function(response) {
+                const duration = performance.now() - startTime;
                 console.log('Template generated successfully!');
                 console.log(response);
                 xRequestId = response.xRequestId;
+
+                trackEvent('TemplateGenerationSuccess', {
+                    xRequestId: xRequestId,
+                    duration: duration,
+                    option1Algorithm: response.option1.algorithm,
+                    option2Algorithm: response.option2.algorithm,
+                    option3Algorithm: response.option3.algorithm
+                });
 
                 // set the src of the 3 preview images so the user can pick
                 $("#algorith-option-1").attr("src", "{{ url_for('getPreviews') }}?previewPath=" + encodeURIComponent(response.option1.imagePath));
@@ -249,8 +281,16 @@ $(document).ready(function() {
                 uploadRow.hide();
             },
             error: function(xhr, status, error) {
+                const duration = performance.now() - startTime;
                 alert('Error generating template: ' + error);
                 console.error(error);
+
+                trackEvent('TemplateGenerationError', {
+                    error: error,
+                    status: status,
+                    statusCode: xhr.status,
+                    duration: duration
+                });
             },
             complete: function() {
                 // uploadButton.prop('disabled', false).text('Generate Beads Template');
@@ -263,12 +303,24 @@ $(document).ready(function() {
     $('.choose-option').on('click', function () {
       const chosenOption = $(this).data('option');
       const chosenAlgorithm = $(this).data('algorithm');
+      trackEvent('AlgorithmOptionSelected', {
+          option: chosenOption,
+          algorithm: chosenAlgorithm,
+          xRequestId: xRequestId
+      });
       chooseTemplateGenerationAlgorithm(chosenOption, chosenAlgorithm);
     });
 
     function chooseTemplateGenerationAlgorithm(chosenOption, chosenAlgorithm) {
       console.log("User choose option: ", chosenOption);
       console.log("User choose algorithm: ", chosenAlgorithm);
+
+      const startTime = performance.now();
+      trackEvent('3DModelGenerationStarted', {
+          algorithm: chosenAlgorithm,
+          xRequestId: xRequestId
+      });
+
       // Do call to backend to start the generation of the template for the chosen option
       $.ajax({
         url: '{{ url_for("generateBeadsTemplatePost", algorithm='') }}' + chosenAlgorithm,
@@ -279,8 +331,17 @@ $(document).ready(function() {
         },
         data: JSON.stringify({ algorithm: chosenAlgorithm }),
         success: function (response) {
+          const duration = performance.now() - startTime;
           console.log('Template generation started successfully!');
           console.log(response);
+
+          trackEvent('3DModelGenerationSuccess', {
+              algorithm: chosenAlgorithm,
+              xRequestId: xRequestId,
+              duration: duration,
+              stlPath: response.stlPath,
+              objPath: response.objPath
+          });
 
           $("#download-stl-button").attr("href", "{{ url_for('getPreviews') }}?previewPath=" + response.stlPath);
           $("#download-obj-button").attr("href", "{{ url_for('getPreviews') }}?previewPath=" + response.objPath);
@@ -288,18 +349,44 @@ $(document).ready(function() {
           downloadModelsRow.show();
         },
         error: function (xhr, status, error) {
+          const duration = performance.now() - startTime;
           alert('Error generating template: ' + error);
           console.error(error);
+
+          trackEvent('3DModelGenerationError', {
+              algorithm: chosenAlgorithm,
+              xRequestId: xRequestId,
+              error: error,
+              status: status,
+              statusCode: xhr.status,
+              duration: duration
+          });
         }
       });
     }
 
     // Fullscreen image viewer
     $('.preview-image-clickable').on('click', function() {
+        trackEvent('PreviewImageClicked');
         const imgSrc = $(this).attr('src');
         $('#modalImage').attr('src', imgSrc);
         const imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
         imageModal.show();
+    });
+
+    // Track download clicks
+    $('#download-stl-button').on('click', function() {
+        trackEvent('ModelDownloaded', {
+            format: 'STL',
+            xRequestId: xRequestId
+        });
+    });
+
+    $('#download-obj-button').on('click', function() {
+        trackEvent('ModelDownloaded', {
+            format: 'OBJ',
+            xRequestId: xRequestId
+        });
     });
 });
 </script>

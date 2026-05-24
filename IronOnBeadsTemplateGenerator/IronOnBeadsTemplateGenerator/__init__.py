@@ -32,4 +32,10 @@ for _handler in logging.getLogger().handlers:
 for _prefix in _EXCLUDED_PREFIXES:
     logging.getLogger(_prefix).addFilter(_ExcludeInternalLogsFilter())
 
+@app.context_processor
+def inject_appinsights():
+    return {
+        'appinsights_connection_string': os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING", "")
+    }
+
 import IronOnBeadsTemplateGenerator.views
