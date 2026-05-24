@@ -8,10 +8,10 @@ param location string = resourceGroup().location
 param containerImage string
 
 @description('Container CPU cores (e.g. "0.25", "0.5", "1.0")')
-param cpu string = '0.5'
+param cpu string = '1.0'
 
-@description('Container memory')
-param memory string = '1.0Gi'
+@description('Container memory (needs to be 2x cpu)')
+param memory string = '2.0Gi'
 
 @description('Container port')
 param targetPort int = 8000
