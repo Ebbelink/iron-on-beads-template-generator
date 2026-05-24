@@ -11,6 +11,15 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 
+# Filter out internal noise from OpenTelemetry and Azure Monitor exporters
+_EXCLUDED_PREFIXES = ("opentelemetry", "azure.monitor", "azure.core")
+
+class _ExcludeInternalLogsFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.levelno >= logging.ERROR or not any(record.name.startswith(p) for p in _EXCLUDED_PREFIXES)
+
+logging.getLogger().addFilter(_ExcludeInternalLogsFilter())
+
 from flask import Flask
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
