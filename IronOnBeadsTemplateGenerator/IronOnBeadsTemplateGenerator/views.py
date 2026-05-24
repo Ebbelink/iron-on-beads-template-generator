@@ -99,7 +99,7 @@ def generateTemplateOutlines():
     )
 
     # Resize image if it's too large (max dimension = 1400px)
-    MAX_DIMENSION = 1400
+    MAX_DIMENSION = 1500
     height, width = imageOriginal_np.shape[:2]
     max_dim = max(height, width)
 
