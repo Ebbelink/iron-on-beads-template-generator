@@ -62,17 +62,17 @@
     <div class="col-md-4">
       <h3>Option 1</h3>
       <img id="algorith-option-1" alt="Option 1" class="img-fluid mb-3 preview-image-clickable" style="cursor: pointer;">
-      <button id="algorith-option-1-button" class="btn btn-primary choose-option" data-option="1" data-algorithm="custom">Choose option 1</button>
+      <button id="algorith-option-1-button" class="btn btn-primary choose-option" data-option="1" data-algorithm="custom">Choose option</button>
     </div>
     <div class="col-md-4">
       <h3>Option 2</h3>
       <img id="algorith-option-2" alt="Option 2" class="img-fluid mb-3 preview-image-clickable" style="cursor: pointer;">
-      <button id="algorith-option-2-button" class="btn btn-primary choose-option" data-option="2">Choose option 2</button>
+      <button id="algorith-option-2-button" class="btn btn-primary choose-option" data-option="2">Choose option</button>
     </div>
     <div class="col-md-4">
       <h3>Option 3</h3>
       <img id="algorith-option-3" alt="Option 3" class="img-fluid mb-3 preview-image-clickable" style="cursor: pointer;">
-      <button id="algorith-option-3-button" class="btn btn-primary choose-option" data-option="3">Choose option 3</button>
+      <button id="algorith-option-3-button" class="btn btn-primary choose-option" data-option="3">Choose option</button>
     </div>
   </div>
 </div>
@@ -227,6 +227,8 @@ $(document).ready(function() {
       $("#algorith-option-1").attr("src", "");
       $("#algorith-option-2").attr("src", "");
       $("#algorith-option-3").attr("src", "");
+
+      $('.choose-option').text('Choose option').prop('disabled', false);
     }
 
     // Upload button handler
@@ -308,6 +310,9 @@ $(document).ready(function() {
           algorithm: chosenAlgorithm,
           xRequestId: xRequestId
       });
+
+      $('.choose-option').prop('disabled', true);
+      $(this).text('Generating...');
       chooseTemplateGenerationAlgorithm(chosenOption, chosenAlgorithm);
     });
 

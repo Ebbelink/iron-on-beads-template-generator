@@ -15,7 +15,7 @@ from enum import Enum
 from shapely.geometry import Polygon, MultiPolygon
 from shapely.validation import make_valid
 from PIL import Image, ImageDraw
-from skimage import filters, img_as_ubyte, measure, feature, color, io, morphology
+from skimage import filters, img_as_ubyte, measure, feature, color, io, morphology, transform
 import trimesh
 import trimesh.creation
 import numpy as np
@@ -97,6 +97,31 @@ def generateTemplateOutlines():
         imageOriginal_np.shape,
         imageOriginal_np.dtype,
     )
+
+    # Resize image if it's too large (max dimension = 1400px)
+    MAX_DIMENSION = 1400
+    height, width = imageOriginal_np.shape[:2]
+    max_dim = max(height, width)
+
+    if max_dim > MAX_DIMENSION:
+        app.logger.info(
+            "Image exceeds max dimension (%dpx). Resizing from %dx%d",
+            MAX_DIMENSION,
+            width,
+            height,
+        )
+
+        saveImage(
+            imageOriginal_np,
+            file.filename,
+            f"uploads/processing/{g.request_id}",
+            "original-XXL",
+        )
+        
+        imageOriginal_np = resize_image(imageOriginal_np, MAX_DIMENSION)
+        app.logger.info(
+            "Resized image to: shape=%s", imageOriginal_np.shape
+        )
 
     try:
         app.logger.info("Starting image processing pipeline")
@@ -429,6 +454,39 @@ def getImageGrayscale(imageOriginal_np, originalFileName=""):
         )
 
     return imageGrayScale
+
+
+def resize_image(image_np, max_dimension=1400):
+    """
+    Resize an image so that its largest dimension doesn't exceed max_dimension.
+    Maintains aspect ratio.
+
+    Parameters:
+    - image_np: numpy array of the image
+    - max_dimension: maximum allowed dimension in pixels (default: 1400)
+
+    Returns:
+    - resized image as numpy array
+    """
+    height, width = image_np.shape[:2]
+    max_dim = max(height, width)
+
+    if max_dim <= max_dimension:
+        return image_np
+
+    # Calculate new dimensions maintaining aspect ratio
+    scale_factor = max_dimension / max_dim
+    new_height = int(height * scale_factor)
+    new_width = int(width * scale_factor)
+
+    resized = transform.resize(
+        image_np,
+        (new_height, new_width),
+        anti_aliasing=True,
+        preserve_range=True
+    )
+
+    return resized.astype(image_np.dtype)
 
 
 def calculateBackgroundColor(image_np, corner_size=20):
