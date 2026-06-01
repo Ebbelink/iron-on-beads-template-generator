@@ -38,4 +38,12 @@ def inject_appinsights():
         'appinsights_connection_string': os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING", "")
     }
 
+# Import helper functions and models (still in views.py for now)
 import IronOnBeadsTemplateGenerator.views
+
+# Import presentation layer routes
+from IronOnBeadsTemplateGenerator.presentation.routes import (
+    home_routes,
+    template_routes,
+    preview_routes,
+)
