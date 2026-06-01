@@ -2,9 +2,16 @@
 
 import os
 import numpy
-from flask import g, request, jsonify
+from flask import g, request
 from IronOnBeadsTemplateGenerator import app
 from skimage import io
+
+from IronOnBeadsTemplateGenerator.presentation.responses import (
+    TemplateOutlinesResponse,
+    AlgorithmOptionResponse,
+    BeadsTemplateResponse,
+    ErrorResponse,
+)
 
 # Import helper functions from views (will be refactored later)
 from IronOnBeadsTemplateGenerator.views import (
@@ -28,7 +35,7 @@ def generateTemplateOutlines():
 
     if "image" not in request.files:
         app.logger.warning("No image field in request.files")
-        return jsonify({"error": "No image file provided"}), 400
+        return ErrorResponse("No image file provided").to_response(400)
 
     file = request.files["image"]
     app.logger.info(
@@ -37,7 +44,7 @@ def generateTemplateOutlines():
 
     if file.filename == "":
         app.logger.warning("Empty filename, exit early")
-        return jsonify({"error": "No file selected"}), 400
+        return ErrorResponse("No file selected").to_response(400)
 
     if not (
         "." in file.filename
@@ -45,12 +52,7 @@ def generateTemplateOutlines():
         in {"png", "jpg", "jpeg", "gif", "bmp"}
     ):
         app.logger.warning("Invalid file extension. Received: %s", file.filename)
-        return (
-            jsonify(
-                {"error": "Invalid file type. Allowed types: png, jpg, jpeg, gif, bmp"}
-            ),
-            400,
-        )
+        return ErrorResponse("Invalid file type. Allowed types: png, jpg, jpeg, gif, bmp").to_response(400)
 
     imageOriginal_np = io.imread(file)
     app.logger.info(
@@ -143,20 +145,17 @@ def generateTemplateOutlines():
         app.logger.exception(
             "Failed to process image for request %s: %s", g.request_id, e
         )
-        return jsonify({"error": "Image processing failed"}), 500
+        return ErrorResponse("Image processing failed").to_response(500)
 
-    return (
-        jsonify(
-            {
-                "filename": file.name,
-                "xRequestId": g.request_id,
-                "option1": {"algorithm": "custom", "imagePath": overlayCustom},
-                "option2": {"algorithm": "li", "imagePath": overlayLi},
-                "option3": {"algorithm": "sauvola", "imagePath": overlaySauvola},
-            }
-        ),
-        200,
+    response = TemplateOutlinesResponse(
+        filename=file.name,
+        xRequestId=g.request_id,
+        option1=AlgorithmOptionResponse(algorithm="custom", imagePath=overlayCustom),
+        option2=AlgorithmOptionResponse(algorithm="li", imagePath=overlayLi),
+        option3=AlgorithmOptionResponse(algorithm="sauvola", imagePath=overlaySauvola),
     )
+
+    return response.to_response()
 
 
 @app.route("/templates/generate/<algorithm>", methods=["POST"])
@@ -173,10 +172,7 @@ def generateBeadsTemplatePost(algorithm):
                 pathToImage = os.path.join(expected_directory, currentFileName)
                 break
     if not pathToImage:
-        return (
-            jsonify({"error": "No processed image found for the given algorithm"}),
-            400,
-        )
+        return ErrorResponse("No processed image found for the given algorithm").to_response(400)
 
     cleanBinaryImage = numpy.array(io.imread(pathToImage))
     contourResult = getContour(cleanBinaryImage)
@@ -198,10 +194,10 @@ def generateBeadsTemplatePost(algorithm):
     mesh.export(stl_path)
     mesh.export(obj_path)
 
-    return jsonify(
-        {
-            "success": True,
-            "stlPath": f"uploads/processing/{g.request_id}/beads_template.stl",
-            "objPath": f"uploads/processing/{g.request_id}/beads_template.obj",
-        }
+    response = BeadsTemplateResponse(
+        success=True,
+        stlPath=f"uploads/processing/{g.request_id}/beads_template.stl",
+        objPath=f"uploads/processing/{g.request_id}/beads_template.obj",
     )
+
+    return response.to_response()

@@ -38,6 +38,7 @@ SERVER_PORT=5678</PythonDebugWebServerCommandEnvironment>
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="IronOnBeadsTemplateGenerator\presentation\responses.py" />
     <Compile Include="IronOnBeadsTemplateGenerator\presentation\routes\home_routes.py" />
     <Compile Include="IronOnBeadsTemplateGenerator\presentation\routes\preview_routes.py" />
     <Compile Include="IronOnBeadsTemplateGenerator\presentation\routes\template_routes.py" />
@@ -52,7 +53,6 @@ SERVER_PORT=5678</PythonDebugWebServerCommandEnvironment>
     <Folder Include="IronOnBeadsTemplateGenerator\application\" />
     <Folder Include="IronOnBeadsTemplateGenerator\domain\models\" />
     <Folder Include="IronOnBeadsTemplateGenerator\presentation\" />
-    <Folder Include="IronOnBeadsTemplateGenerator\presentation\responses\" />
     <Folder Include="IronOnBeadsTemplateGenerator\presentation\routes\" />
     <Folder Include="IronOnBeadsTemplateGenerator\static\" />
     <Folder Include="IronOnBeadsTemplateGenerator\static\content\" />
