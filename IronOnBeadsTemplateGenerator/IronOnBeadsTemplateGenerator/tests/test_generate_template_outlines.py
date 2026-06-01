@@ -167,10 +167,10 @@ def rm_dir(path):
         return
 
 
-class TestGenerateBeadsTemplate:
+class TestGenerateTemplateOutlines:
     """Test class for beads template generation."""
 
-    CONST_ENDPOINT_PATH: Final[str] = "/generate-template-outlines"
+    CONST_ENDPOINT_PATH: Final[str] = "/templates/generate/outlines"
 
     def test_get_generate_template_page(self, client):
         """Test that the generate template page loads correctly."""
@@ -220,15 +220,9 @@ class TestGenerateBeadsTemplate:
             self.CONST_ENDPOINT_PATH, data=data, content_type="multipart/form-data"
         )
 
-        # data = {"image": (sample_image_safety_knife, "test_image.png")}
-        # response = client.post(
-        #     self.CONST_ENDPOINT_PATH, data=data, content_type="multipart/form-data"
-        # )
-
         assert response.status_code == 200
         json_data = response.get_json()
         assert "filename" in json_data
-        # assert "test_image.png" in json_data["filename"]
 
     def test_post_with_jpg_image(self, client):
         """Test POST request with a JPG image."""

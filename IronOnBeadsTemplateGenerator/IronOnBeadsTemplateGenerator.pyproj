@@ -45,7 +45,7 @@ SERVER_PORT=5678</PythonDebugWebServerCommandEnvironment>
     <Compile Include="runserver.py" />
     <Compile Include="IronOnBeadsTemplateGenerator\__init__.py" />
     <Compile Include="IronOnBeadsTemplateGenerator\views.py" />
-    <Compile Include="IronOnBeadsTemplateGenerator\tests\test_generate_beads_template.py" />
+    <Compile Include="IronOnBeadsTemplateGenerator\tests\test_generate_template_outlines.py" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="IronOnBeadsTemplateGenerator\" />
