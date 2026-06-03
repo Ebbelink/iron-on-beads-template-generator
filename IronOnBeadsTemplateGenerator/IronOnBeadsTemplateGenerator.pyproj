@@ -38,6 +38,8 @@ SERVER_PORT=5678</PythonDebugWebServerCommandEnvironment>
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="IronOnBeadsTemplateGenerator\application\ImageHelper.py" />
+    <Compile Include="IronOnBeadsTemplateGenerator\domain\models.py" />
     <Compile Include="IronOnBeadsTemplateGenerator\presentation\responses.py" />
     <Compile Include="IronOnBeadsTemplateGenerator\presentation\routes\home_routes.py" />
     <Compile Include="IronOnBeadsTemplateGenerator\presentation\routes\preview_routes.py" />
@@ -51,7 +53,6 @@ SERVER_PORT=5678</PythonDebugWebServerCommandEnvironment>
     <Folder Include="IronOnBeadsTemplateGenerator\" />
     <Folder Include="IronOnBeadsTemplateGenerator\domain\" />
     <Folder Include="IronOnBeadsTemplateGenerator\application\" />
-    <Folder Include="IronOnBeadsTemplateGenerator\domain\models\" />
     <Folder Include="IronOnBeadsTemplateGenerator\presentation\" />
     <Folder Include="IronOnBeadsTemplateGenerator\presentation\routes\" />
     <Folder Include="IronOnBeadsTemplateGenerator\static\" />
@@ -64,6 +65,7 @@ SERVER_PORT=5678</PythonDebugWebServerCommandEnvironment>
   </ItemGroup>
   <ItemGroup>
     <Content Include="infra.bicep" />
+    <Content Include="IronOnBeadsTemplateGenerator\application\MeshBuilder.py" />
     <Content Include="IronOnBeadsTemplateGenerator\tests\images\test-image-file-spotlight.jpeg" />
     <Content Include="IronOnBeadsTemplateGenerator\tests\images\test-image-file.jpeg" />
     <Content Include="IronOnBeadsTemplateGenerator\tests\images\test-image-knife-spotlight.jpeg" />

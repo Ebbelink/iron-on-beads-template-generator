@@ -18,12 +18,16 @@ from IronOnBeadsTemplateGenerator.views import (
     SupportedThresholdMethod,
     getEdgeContour,
     getContour,
-    drawPolygonOnImage,
-    saveImage,
-    resize_image,
     scale_polygon_to_mm,
-    buildBeadsTemplateMesh,
 )
+
+from IronOnBeadsTemplateGenerator.application.ImageHelper import (
+    save_image,
+    resize_image,
+    draw_polygon
+)
+
+from IronOnBeadsTemplateGenerator.application.MeshBuilder import build_beads_template_mesh
 
 
 @app.route("/templates/generate/outlines", methods=["POST"])
@@ -74,7 +78,7 @@ def generateTemplateOutlines():
             height,
         )
 
-        saveImage(
+        save_image(
             imageOriginal_np,
             file.filename,
             f"uploads/processing/{g.request_id}",
@@ -86,7 +90,7 @@ def generateTemplateOutlines():
 
     try:
         app.logger.info("Starting image processing pipeline")
-        saveImage(
+        save_image(
             imageOriginal_np,
             file.filename,
             f"uploads/processing/{g.request_id}",
@@ -97,10 +101,10 @@ def generateTemplateOutlines():
             imageOriginal_np, file.filename, SupportedThresholdMethod.CUSTOM
         )
         app.logger.info("Completed CUSTOM contour detection")
-        image_with_polygon = drawPolygonOnImage(
+        image_with_polygon = draw_polygon(
             imageOriginal_np, edgeContourCustom.polygon, color=(255, 0, 0), line_width=3
         )
-        overlayCustom = saveImage(
+        overlayCustom = save_image(
             image_with_polygon,
             file.filename,
             f"uploads/processing/{g.request_id}",
@@ -112,10 +116,10 @@ def generateTemplateOutlines():
             imageOriginal_np, file.filename, SupportedThresholdMethod.LI
         )
         app.logger.info("Completed LI contour detection")
-        image_with_polygon = drawPolygonOnImage(
+        image_with_polygon = draw_polygon(
             imageOriginal_np, edgeContourLi.polygon, color=(255, 0, 0), line_width=3
         )
-        overlayLi = saveImage(
+        overlayLi = save_image(
             image_with_polygon,
             file.filename,
             f"uploads/processing/{g.request_id}",
@@ -127,13 +131,13 @@ def generateTemplateOutlines():
             imageOriginal_np, file.filename, SupportedThresholdMethod.SAUVOLA
         )
         app.logger.info("Completed SAUVOLA contour detection")
-        image_with_polygon = drawPolygonOnImage(
+        image_with_polygon = draw_polygon(
             imageOriginal_np,
             edgeContourSauvola.polygon,
             color=(255, 0, 0),
             line_width=3,
         )
-        overlaySauvola = saveImage(
+        overlaySauvola = save_image(
             image_with_polygon,
             file.filename,
             f"uploads/processing/{g.request_id}",
@@ -184,7 +188,7 @@ def generateBeadsTemplatePost(algorithm):
         contourResult.polygon, PIXELS_PER_MM, contourResult.image_size[1]
     )
 
-    mesh = buildBeadsTemplateMesh(polygon_mm)
+    mesh = build_beads_template_mesh(polygon_mm)
 
     output_dir = os.path.join(app.root_path, f"uploads/processing/{g.request_id}")
     os.makedirs(output_dir, exist_ok=True)
