@@ -6,10 +6,10 @@ from IronOnBeadsTemplateGenerator import app
 
 
 @app.route("/previews", methods=["GET"])
-def getPreviews():
+def get_previews():
     """Serve preview images and generated files."""
-    previewPath = request.args.get("previewPath")
-    if previewPath.startswith("uploads/processing/"):
-        return send_file(os.path.join(app.root_path, previewPath))
+    preview_path = request.args.get("preview_path")
+    if preview_path.startswith("uploads/processing/"):
+        return send_file(os.path.join(app.root_path, preview_path))
     else:
         return jsonify({"error": "Invalid preview path"}), 400

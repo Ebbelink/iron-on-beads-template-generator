@@ -41,11 +41,11 @@ def create_bead_plate(shape: Polygon) -> trimesh.Trimesh:
         base_polygon = max(base_polygon.geoms, key=lambda g: g.area)
 
     exterior_coords = np.array(base_polygon.exterior.coords)
-    path2d = trimesh.path.Path2D(
+    path_2d = trimesh.path.Path2D(
         entities=[trimesh.path.entities.Line(np.arange(len(exterior_coords)))],
         vertices=exterior_coords,
     )
-    base_mesh = path2d.extrude(BASE_THICKNESS_MM).to_mesh()
+    base_mesh = path_2d.extrude(BASE_THICKNESS_MM).to_mesh()
     return base_mesh
 
 
@@ -59,7 +59,7 @@ def create_peg_layout(bead_plate: Polygon, peg_spacing_mm=5.0) -> list:
     pockets are fully filled.
     """
     pegs = []
-    placed_centres = []
+    placed_centers = []
 
     # Work queue: list of polygons still to be shrunk.
     # Seeded with the original polygon; grows when a buffer split produces
@@ -72,7 +72,7 @@ def create_peg_layout(bead_plate: Polygon, peg_spacing_mm=5.0) -> list:
         for current_polygon in pending:
             # Walk the outer ring of this polygon piece
             tmp_ring_spacing_mm =  current_polygon.exterior.length / np.floor(current_polygon.exterior.length / peg_spacing_mm)
-            _walk_ring(current_polygon.exterior, placed_centres, pegs, tmp_ring_spacing_mm)
+            _walk_ring(current_polygon.exterior, placed_centers, pegs, tmp_ring_spacing_mm)
 
             # Shrink inward by one full peg spacing
             shrunk = current_polygon.buffer(-peg_spacing_mm)
@@ -91,7 +91,7 @@ def create_peg_layout(bead_plate: Polygon, peg_spacing_mm=5.0) -> list:
     return pegs
 
 
-def _walk_ring(ring, placed_centres: list, pegs: list, peg_spacing_mm: float):
+def _walk_ring(ring, placed_centers: list, pegs: list, peg_spacing_mm: float):
     """Walk a single ring and place pegs where spacing allows."""
     ring_length = ring.length
     if ring_length < peg_spacing_mm:
@@ -104,10 +104,10 @@ def _walk_ring(ring, placed_centres: list, pegs: list, peg_spacing_mm: float):
         cx, cy = pt.x, pt.y
 
         too_close = any(
-            np.hypot(cx - px, cy - py) < PEG_SPACING_MM for px, py in placed_centres
+            np.hypot(cx - px, cy - py) < PEG_SPACING_MM for px, py in placed_centers
         )
         if not too_close:
-            placed_centres.append((cx, cy))
+            placed_centers.append((cx, cy))
             pegs.append(_create_peg(cx, cy))
         distance += scan_step
 

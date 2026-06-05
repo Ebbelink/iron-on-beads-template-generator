@@ -9,14 +9,14 @@ from flask import jsonify, Response
 class AlgorithmOptionResponse:
     """Individual algorithm option with image path."""
     algorithm: str
-    imagePath: str
+    image_path: str
 
 
 @dataclass
 class TemplateOutlinesResponse:
     """Response for template outlines generation."""
     filename: str
-    xRequestId: str
+    x_request_id: str
     option1: AlgorithmOptionResponse
     option2: AlgorithmOptionResponse
     option3: AlgorithmOptionResponse
@@ -30,8 +30,8 @@ class TemplateOutlinesResponse:
 class BeadsTemplateResponse:
     """Response for 3D beads template generation."""
     success: bool
-    stlPath: str
-    objPath: str
+    stl_path: str
+    obj_path: str
 
     def to_response(self, status_code: int = 200) -> Tuple[Response, int]:
         """Return a Flask jsonify response with status code."""

@@ -7,7 +7,7 @@ from IronOnBeadsTemplateGenerator import app
 
 @app.route("/")
 @app.route("/generate-beads-template")
-def generateBeadsTemplate():
+def generate_beads_template():
     """Renders the home page."""
     return render_template(
         "generate-template.html",

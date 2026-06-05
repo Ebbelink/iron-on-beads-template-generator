@@ -143,9 +143,9 @@ def sample_image_safety_knife_dark_bg():
 def run_before_and_after_tests(tmpdir):
     """Fixture to execute asserts before and after a test is run"""
     # Setup
-    uploadsDir = os.path.join(app.root_path, "uploads")
+    uploads_dir = os.path.join(app.root_path, "uploads")
 
-    rm_dir(uploadsDir)
+    rm_dir(uploads_dir)
 
     yield  # Test runs here
 
@@ -160,8 +160,8 @@ def rm_dir(path):
             os.remove(path)
             return
         if os.path.isdir(path):
-            dirContents = os.listdir(path)
-            for entry in dirContents:
+            dir_contents = os.listdir(path)
+            for entry in dir_contents:
                 rm_dir(os.path.join(path, entry))
             os.rmdir(path)
         return

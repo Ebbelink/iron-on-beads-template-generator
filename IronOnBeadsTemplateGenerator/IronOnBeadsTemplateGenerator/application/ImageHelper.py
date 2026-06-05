@@ -11,39 +11,39 @@ from skimage import filters, img_as_ubyte, measure, feature, color, io, morpholo
 from IronOnBeadsTemplateGenerator.domain.models import SupportedThresholdMethod
 
 
-def get_clean_binary_image(imageGrayScale_np, threshold_method, filename):
-    background_value = calculate_background_color(imageGrayScale_np)
-    isWhiteBackground = background_value > 0.5
-    # height, width = imageGrayScale_np.shape
+def get_clean_binary_image(image_grayscale_np, threshold_method, filename):
+    background_value = calculate_background_color(image_grayscale_np)
+    is_white_background = background_value > 0.5
+    # height, width = image_grayscale_np.shape
 
-    imageToThreshold = imageGrayScale_np
+    image_to_threshold = image_grayscale_np
 
     match threshold_method:
         case SupportedThresholdMethod.CUSTOM:
-            if isWhiteBackground:
-                thresholdValue = background_value * 0.8
-                binary = imageToThreshold < thresholdValue
+            if is_white_background:
+                threshold_value = background_value * 0.8
+                binary = image_to_threshold < threshold_value
             else:
-                thresholdValue = background_value * 1.1
-                binary = imageToThreshold > thresholdValue
+                threshold_value = background_value * 1.1
+                binary = image_to_threshold > threshold_value
         case SupportedThresholdMethod.LI:
-            thresholdValue = filters.threshold_li(imageToThreshold)
-            if isWhiteBackground:
-                binary = imageToThreshold < thresholdValue
+            threshold_value = filters.threshold_li(image_to_threshold)
+            if is_white_background:
+                binary = image_to_threshold < threshold_value
             else:
-                binary = imageToThreshold > thresholdValue
+                binary = image_to_threshold > threshold_value
         case SupportedThresholdMethod.NIBLACK:
-            thresholdValue = filters.threshold_niblack(imageToThreshold, 29)
-            if isWhiteBackground:
-                binary = imageToThreshold < thresholdValue
+            threshold_value = filters.threshold_niblack(image_to_threshold, 29)
+            if is_white_background:
+                binary = image_to_threshold < threshold_value
             else:
-                binary = imageToThreshold > thresholdValue
+                binary = image_to_threshold > threshold_value
         case SupportedThresholdMethod.SAUVOLA:
-            thresholdValue = filters.threshold_sauvola(imageToThreshold)
-            if isWhiteBackground:
-                binary = imageToThreshold < thresholdValue
+            threshold_value = filters.threshold_sauvola(image_to_threshold)
+            if is_white_background:
+                binary = image_to_threshold < threshold_value
             else:
-                binary = imageToThreshold > thresholdValue
+                binary = image_to_threshold > threshold_value
 
     threshold_method_name = threshold_method.name.lower()
     save_image(
@@ -124,23 +124,23 @@ def save_image(image, filename, directory="uploads", prefix="", postfix="") -> s
     return os.path.join(directory, constructed_filename)
 
 
-def get_image_grayscale(imageOriginal_np, originalFileName=""):
+def get_image_grayscale(image_original_np, original_filename=""):
     # Strip alpha channel if present (e.g. PNG with transparency) rgb2gray expects 3 channels (RGB); RGBA will cause a dimension mismatch
-    if imageOriginal_np.ndim == 3 and imageOriginal_np.shape[2] == 4:
-        imageOriginal_np = imageOriginal_np[:, :, :3]
+    if image_original_np.ndim == 3 and image_original_np.shape[2] == 4:
+        image_original_np = image_original_np[:, :, :3]
 
-    imageGrayScale = color.rgb2gray(imageOriginal_np)
+    image_grayscale = color.rgb2gray(image_original_np)
 
-    if originalFileName:
+    if original_filename:
         save_image(
-            img_as_ubyte(imageGrayScale),
-            originalFileName,
+            img_as_ubyte(image_grayscale),
+            original_filename,
             f"uploads/processing/{g.request_id}",
             "",
             "-grayscale.png",
         )
 
-    return imageGrayScale
+    return image_grayscale
 
 
 def resize_image(image_np, max_dimension=1400):

@@ -182,7 +182,7 @@ $(document).ready(function() {
             }
 
             selectedFile = file;
-            trackEvent('ImageSelected', { 
+            trackEvent('ImageSelected', {
                 fileSize: file.size,
                 fileType: file.type,
                 fileName: file.name
@@ -251,7 +251,7 @@ $(document).ready(function() {
         });
 
         $.ajax({
-            url: '{{ url_for("generateTemplateOutlines") }}',
+            url: '{{ url_for("generate_template_outlines") }}',
             type: 'POST',
             data: formData,
             processData: false,
@@ -260,7 +260,7 @@ $(document).ready(function() {
                 const duration = performance.now() - startTime;
                 console.log('Template generated successfully!');
                 console.log(response);
-                xRequestId = response.xRequestId;
+                xRequestId = response.x_request_id;
 
                 trackEvent('TemplateGenerationSuccess', {
                     xRequestId: xRequestId,
@@ -271,11 +271,11 @@ $(document).ready(function() {
                 });
 
                 // set the src of the 3 preview images so the user can pick
-                $("#algorith-option-1").attr("src", "{{ url_for('getPreviews') }}?previewPath=" + encodeURIComponent(response.option1.imagePath));
+                $("#algorith-option-1").attr("src", "{{ url_for('get_previews') }}?preview_path=" + encodeURIComponent(response.option1.image_path));
                 $("#algorith-option-1-button").attr("data-algorithm", response.option1.algorithm);
-                $("#algorith-option-2").attr("src", "{{ url_for('getPreviews') }}?previewPath=" + encodeURIComponent(response.option2.imagePath));
+                $("#algorith-option-2").attr("src", "{{ url_for('get_previews') }}?preview_path=" + encodeURIComponent(response.option2.image_path));
                 $("#algorith-option-2-button").attr("data-algorithm", response.option2.algorithm);
-                $("#algorith-option-3").attr("src", "{{ url_for('getPreviews') }}?previewPath=" + encodeURIComponent(response.option3.imagePath));
+                $("#algorith-option-3").attr("src", "{{ url_for('get_previews') }}?preview_path=" + encodeURIComponent(response.option3.image_path));
                 $("#algorith-option-3-button").attr("data-algorithm", response.option3.algorithm);
 
                 uploadButton.prop('disabled', false).text('Generate Beads Template');
@@ -328,7 +328,7 @@ $(document).ready(function() {
 
       // Do call to backend to start the generation of the template for the chosen option
       $.ajax({
-        url: '{{ url_for("generateBeadsTemplatePost", algorithm='') }}' + chosenAlgorithm,
+        url: '{{ url_for("generate_beads_template_post", algorithm='') }}' + chosenAlgorithm,
         type: 'POST',
         contentType: 'application/json',
         headers: {
@@ -344,12 +344,12 @@ $(document).ready(function() {
               algorithm: chosenAlgorithm,
               xRequestId: xRequestId,
               duration: duration,
-              stlPath: response.stlPath,
-              objPath: response.objPath
+              stlPath: response.stl_path,
+              objPath: response.obj_path
           });
 
-          $("#download-stl-button").attr("href", "{{ url_for('getPreviews') }}?previewPath=" + response.stlPath);
-          $("#download-obj-button").attr("href", "{{ url_for('getPreviews') }}?previewPath=" + response.objPath);
+          $("#download-stl-button").attr("href", "{{ url_for('get_previews') }}?preview_path=" + response.stl_path);
+          $("#download-obj-button").attr("href", "{{ url_for('get_previews') }}?preview_path=" + response.obj_path);
           algorithPreviewImages.hide();
           downloadModelsRow.show();
         },

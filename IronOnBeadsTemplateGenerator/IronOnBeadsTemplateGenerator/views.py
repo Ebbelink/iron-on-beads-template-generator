@@ -29,24 +29,24 @@ class EdgeContourResult:
     image_size: tuple[int, int]
 
 
-def getEdgeContour(
-    imageOriginal_np, filename, threshold_method=SupportedThresholdMethod.CUSTOM
+def get_edge_contour(
+    image_original_np, filename, threshold_method=SupportedThresholdMethod.CUSTOM
 ) -> EdgeContourResult:
-    imageGrayScale_np = get_image_grayscale(imageOriginal_np, filename)
+    image_grayscale_np = get_image_grayscale(image_original_np, filename)
     save_image(
-        imageGrayScale_np, filename, f"uploads/processing/{g.request_id}", "grayscale"
+        image_grayscale_np, filename, f"uploads/processing/{g.request_id}", "grayscale"
     )
 
-    cleanBinaryImage = get_clean_binary_image(
-        imageGrayScale_np, threshold_method, filename
+    clean_binary_image = get_clean_binary_image(
+        image_grayscale_np, threshold_method, filename
     )
 
-    return getContour(cleanBinaryImage)
+    return get_contour(clean_binary_image)
 
 
-def getContour(cleanedBinaryImage):
-    height, width = cleanedBinaryImage.shape
-    contours = measure.find_contours(cleanedBinaryImage, level=0.5)
+def get_contour(cleaned_binary_image):
+    height, width = cleaned_binary_image.shape
+    contours = measure.find_contours(cleaned_binary_image, level=0.5)
     largest_contour = max(contours, key=len)
 
     # ------------------------------------------------------------------ #
