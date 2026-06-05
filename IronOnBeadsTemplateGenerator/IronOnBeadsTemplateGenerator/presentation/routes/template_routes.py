@@ -188,7 +188,7 @@ def generate_beads_template_post(algorithm):
         contour_result.polygon, PIXELS_PER_MM, contour_result.image_size[1]
     )
 
-    mesh = build_beads_template_mesh(polygon_mm)
+    mesh = build_beads_template_mesh(polygon_mm, True, f"processing/{g.request_id}/rings_visualization.png")
 
     output_dir = os.path.join(app.root_path, f"uploads/processing/{g.request_id}")
     os.makedirs(output_dir, exist_ok=True)

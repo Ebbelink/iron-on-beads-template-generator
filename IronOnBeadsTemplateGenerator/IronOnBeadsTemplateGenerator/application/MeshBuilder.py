@@ -5,24 +5,40 @@
 import numpy as np
 from shapely.geometry import Polygon, MultiPolygon
 import trimesh
+from PIL import Image, ImageDraw
+from IronOnBeadsTemplateGenerator.application.ImageHelper import save_image
 
 BASE_THICKNESS_MM = 3.0
 LIP_MM = 5.0
 PEG_SPACING_MM = 5.0
 
 
-def build_beads_template_mesh(polygon_mm: Polygon) -> trimesh.Trimesh:
+def build_beads_template_mesh(
+    polygon_mm: Polygon,
+    visualize_rings=False,
+    file_name="rings_visualization.png"
+) -> trimesh.Trimesh:
     """
     Build the full 3-D template mesh:
       - A flat base plate (polygon + 5 mm lip, 3 mm thick)
       - Pegs placed on concentric shrinking offsets of the original polygon
+
+    Args:
+        polygon_mm: The polygon shape in millimeters
+        visualize_rings: If True, create an image showing the concentric rings
+        rings_output_path: Path where to save the rings visualization
     """
 
     # Expand polygon with a lip and extrude to base thickness
     base_mesh = create_bead_plate(polygon_mm)
 
     # Place pegs on top of the base plate
-    pegs = create_peg_layout(polygon_mm, peg_spacing_mm=PEG_SPACING_MM)
+    pegs = create_peg_layout(
+        polygon_mm,
+        PEG_SPACING_MM,
+        visualize_rings,
+        file_name
+    )
 
     if not pegs:
         return base_mesh
@@ -49,7 +65,12 @@ def create_bead_plate(shape: Polygon) -> trimesh.Trimesh:
     return base_mesh
 
 
-def create_peg_layout(bead_plate: Polygon, peg_spacing_mm=5.0) -> list:
+def create_peg_layout(
+    bead_plate: Polygon,
+    peg_spacing_mm=5.0,
+    visualize_rings=False,
+    file_name="rings_visualization.png",
+) -> list:
     """
     Place pegs using concentric shrinking rings so peg rows follow the shape
     outline naturally.
@@ -57,9 +78,16 @@ def create_peg_layout(bead_plate: Polygon, peg_spacing_mm=5.0) -> list:
     When an inward buffer splits a concave shape into multiple sub-polygons,
     all pieces are kept and processed independently.  This ensures that concave
     pockets are fully filled.
+
+    Args:
+        bead_plate: The polygon to place pegs within
+        peg_spacing_mm: Spacing between pegs
+        visualize_rings: If True, create an image showing the rings
+        output_path: Path where to save the visualization image
     """
     pegs = []
     placed_centers = []
+    rings_data = []  # Store ring coordinates for visualization
 
     # Work queue: list of polygons still to be shrunk.
     # Seeded with the original polygon; grows when a buffer split produces
@@ -71,8 +99,16 @@ def create_peg_layout(bead_plate: Polygon, peg_spacing_mm=5.0) -> list:
 
         for current_polygon in pending:
             # Walk the outer ring of this polygon piece
-            tmp_ring_spacing_mm = current_polygon.exterior.length / np.floor(current_polygon.exterior.length / peg_spacing_mm)
-            _walk_ring(current_polygon.exterior, placed_centers, pegs, tmp_ring_spacing_mm)
+            tmp_ring_spacing_mm = current_polygon.exterior.length / np.floor(
+                current_polygon.exterior.length / peg_spacing_mm
+            )
+            _walk_ring(
+                current_polygon.exterior, placed_centers, pegs, tmp_ring_spacing_mm
+            )
+
+            # Store ring for visualization
+            if visualize_rings:
+                rings_data.append(np.array(current_polygon.exterior.coords))
 
             # Shrink inward by one full peg spacing
             shrunk = current_polygon.buffer(-peg_spacing_mm)
@@ -87,6 +123,9 @@ def create_peg_layout(bead_plate: Polygon, peg_spacing_mm=5.0) -> list:
                 next_pending.append(shrunk)
 
         pending = next_pending
+
+    if visualize_rings and rings_data:
+        _visualize_rings(rings_data, file_name)
 
     return pegs
 
@@ -110,6 +149,41 @@ def _walk_ring(ring, placed_centers: list, pegs: list, peg_spacing_mm: float):
             placed_centers.append((cx, cy))
             pegs.append(_create_peg(cx, cy))
         distance += scan_step
+
+
+def _visualize_rings(rings_data: list, file_name: str):
+    """Create a visualization of the rings on a white background using Pillow."""
+    if not rings_data:
+        return
+
+    # Find bounding box of all rings
+    all_coords = np.vstack(rings_data)
+    min_x, min_y = all_coords.min(axis=0)
+    max_x, max_y = all_coords.max(axis=0)
+
+    # Add padding
+    padding = 20
+    width = int(max_x - min_x) + 2 * padding
+    height = int(max_y - min_y) + 2 * padding
+
+    # Create white image
+    img = Image.new("RGB", (width, height), "white")
+    draw = ImageDraw.Draw(img)
+
+    # Draw each ring
+    for ring_coords in rings_data:
+        # Transform coordinates to image space
+        points = [
+            (int(x - min_x + padding), int(y - min_y + padding)) for x, y in ring_coords
+        ]
+
+        # Draw the ring as a polygon outline
+        if len(points) > 1:
+            draw.line(points, fill="black", width=2)
+
+    save_image(np.array(img), file_name)
+
+    print(f"Ring visualization saved to: {file_name}")
 
 
 def _create_peg(
