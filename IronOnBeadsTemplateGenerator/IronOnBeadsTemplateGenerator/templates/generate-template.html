@@ -126,13 +126,6 @@ $(document).ready(function() {
     const uploadRow = $('.upload-row');
     const downloadModelsRow = $('.download-models');
 
-    // Helper function to track events with Application Insights
-    function trackEvent(eventName, properties) {
-        if (window.appInsights) {
-            window.appInsights.trackEvent({ name: eventName, properties: properties });
-        }
-    }
-
     // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.on(eventName, function(e) {
@@ -256,6 +249,7 @@ $(document).ready(function() {
             data: formData,
             processData: false,
             contentType: false,
+            headers: xRequestId ? { 'X-REQUEST-ID': xRequestId } : {},
             success: function(response) {
                 const duration = performance.now() - startTime;
                 console.log('Template generated successfully!');
@@ -263,7 +257,6 @@ $(document).ready(function() {
                 xRequestId = response.x_request_id;
 
                 trackEvent('TemplateGenerationSuccess', {
-                    xRequestId: xRequestId,
                     duration: duration,
                     option1Algorithm: response.option1.algorithm,
                     option2Algorithm: response.option2.algorithm,
@@ -307,8 +300,7 @@ $(document).ready(function() {
       const chosenAlgorithm = $(this).data('algorithm');
       trackEvent('AlgorithmOptionSelected', {
           option: chosenOption,
-          algorithm: chosenAlgorithm,
-          xRequestId: xRequestId
+          algorithm: chosenAlgorithm
       });
 
       $('.choose-option').prop('disabled', true);
@@ -322,8 +314,7 @@ $(document).ready(function() {
 
       const startTime = performance.now();
       trackEvent('3DModelGenerationStarted', {
-          algorithm: chosenAlgorithm,
-          xRequestId: xRequestId
+          algorithm: chosenAlgorithm
       });
 
       // Do call to backend to start the generation of the template for the chosen option
@@ -331,9 +322,7 @@ $(document).ready(function() {
         url: '{{ url_for("generate_beads_template_post", algorithm='') }}' + chosenAlgorithm,
         type: 'POST',
         contentType: 'application/json',
-        headers: {
-          'X-REQUEST-ID': xRequestId
-        },
+        headers: xRequestId ? { 'X-REQUEST-ID': xRequestId } : {},
         data: JSON.stringify({ algorithm: chosenAlgorithm }),
         success: function (response) {
           const duration = performance.now() - startTime;
@@ -342,7 +331,6 @@ $(document).ready(function() {
 
           trackEvent('3DModelGenerationSuccess', {
               algorithm: chosenAlgorithm,
-              xRequestId: xRequestId,
               duration: duration,
               stlPath: response.stl_path,
               objPath: response.obj_path
@@ -360,7 +348,6 @@ $(document).ready(function() {
 
           trackEvent('3DModelGenerationError', {
               algorithm: chosenAlgorithm,
-              xRequestId: xRequestId,
               error: error,
               status: status,
               statusCode: xhr.status,
@@ -382,17 +369,25 @@ $(document).ready(function() {
     // Track download clicks
     $('#download-stl-button').on('click', function() {
         trackEvent('ModelDownloaded', {
-            format: 'STL',
-            xRequestId: xRequestId
+            format: 'STL'
         });
     });
 
     $('#download-obj-button').on('click', function() {
         trackEvent('ModelDownloaded', {
-            format: 'OBJ',
-            xRequestId: xRequestId
+            format: 'OBJ'
         });
     });
+
+  function trackEvent(eventName, properties) {
+    if (window.appInsights) {
+      const enrichedProperties = properties || {};
+      if (xRequestId) {
+        enrichedProperties.xRequestId = xRequestId;
+      }
+      window.appInsights.trackEvent({ name: eventName, properties: enrichedProperties });
+    }
+  }
 });
 </script>
 {% endblock %}

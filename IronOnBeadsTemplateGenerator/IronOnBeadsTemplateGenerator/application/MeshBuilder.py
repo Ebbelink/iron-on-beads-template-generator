@@ -71,7 +71,7 @@ def create_peg_layout(bead_plate: Polygon, peg_spacing_mm=5.0) -> list:
 
         for current_polygon in pending:
             # Walk the outer ring of this polygon piece
-            tmp_ring_spacing_mm =  current_polygon.exterior.length / np.floor(current_polygon.exterior.length / peg_spacing_mm)
+            tmp_ring_spacing_mm = current_polygon.exterior.length / np.floor(current_polygon.exterior.length / peg_spacing_mm)
             _walk_ring(current_polygon.exterior, placed_centers, pegs, tmp_ring_spacing_mm)
 
             # Shrink inward by one full peg spacing
