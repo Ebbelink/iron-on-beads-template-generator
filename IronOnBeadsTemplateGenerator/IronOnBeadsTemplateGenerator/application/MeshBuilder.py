@@ -111,7 +111,7 @@ def create_peg_layout(
                 rings_data.append(np.array(current_polygon.exterior.coords))
 
             # Shrink inward by one full peg spacing
-            shrunk = current_polygon.buffer(-peg_spacing_mm)
+            shrunk = current_polygon.buffer(-peg_spacing_mm/2)
             if shrunk.is_empty:
                 continue
 
@@ -133,7 +133,7 @@ def create_peg_layout(
 def _walk_ring(ring, placed_centers: list, pegs: list, peg_spacing_mm: float):
     """Walk a single ring and place pegs where spacing allows."""
     ring_length = ring.length
-    if ring_length < peg_spacing_mm:
+    if ring_length < PEG_SPACING_MM:
         return
 
     scan_step = peg_spacing_mm / 10.0
