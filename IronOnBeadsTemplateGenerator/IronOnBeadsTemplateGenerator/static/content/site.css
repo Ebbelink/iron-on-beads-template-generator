@@ -102,3 +102,12 @@ input[type="checkbox"].input-validation-error {
 .mt-3 {
     margin-top: 20px;
 }
+
+.align-text-center {
+  text-align: center;
+}
+
+.border-dotted {
+  border: 3px dashed #ccc;
+  border-radius: 10px;
+}

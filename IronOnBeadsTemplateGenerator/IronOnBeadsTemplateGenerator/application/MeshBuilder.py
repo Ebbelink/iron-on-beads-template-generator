@@ -43,9 +43,6 @@ def build_beads_template_mesh(
     if not pegs:
         return base_mesh
 
-    for peg in pegs:
-        peg.apply_translation([0, 0, BASE_THICKNESS_MM])
-
     combined = trimesh.util.concatenate([base_mesh] + pegs)
     return combined
 
@@ -147,7 +144,7 @@ def _walk_ring(ring, placed_centers: list, pegs: list, peg_spacing_mm: float):
         )
         if not too_close:
             placed_centers.append((cx, cy))
-            pegs.append(_create_peg(cx, cy))
+            pegs.append(_create_peg(cx, cy, BASE_THICKNESS_MM))
         distance += scan_step
 
 
@@ -191,9 +188,9 @@ def _visualize_rings(rings_data: list, file_name: str):
 
 
 def _create_peg(
-    x: float, y: float, base_radius=1.25, top_radius=0.75, height=7, sections=16
+    x: float, y: float, z: float, base_radius=1.25, top_radius=0.75, height=3.5, sections=16
 ) -> trimesh.Trimesh:
-    """Create a single peg at position (x, y) sitting on z=0.
+    """Create a single peg at position (x, y, z) with bottom at z.
 
     Built from a cylinder with the top cap vertices scaled inward so the peg
     tapers from base_radius at the bottom to top_radius at the top.
@@ -203,6 +200,10 @@ def _create_peg(
     )
 
     vertices = peg.vertices.copy()
+
+    # Shift vertices so bottom is at z=0 (cylinder is centered, so shift up by height/2)
+    vertices[:, 2] += height / 2
+
     top_z = vertices[:, 2].max()
     top_mask = np.isclose(vertices[:, 2], top_z)
 
@@ -210,5 +211,5 @@ def _create_peg(
     vertices[top_mask, :2] *= top_radius / base_radius
 
     peg = trimesh.Trimesh(vertices=vertices, faces=peg.faces.copy(), process=False)
-    peg.apply_translation([x, y, 0])
+    peg.apply_translation([x, y, z])
     return peg
