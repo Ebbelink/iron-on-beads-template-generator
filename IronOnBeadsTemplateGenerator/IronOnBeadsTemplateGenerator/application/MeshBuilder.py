@@ -161,25 +161,29 @@ def _visualize_rings(rings_data: list, file_name: str):
     min_x, min_y = all_coords.min(axis=0)
     max_x, max_y = all_coords.max(axis=0)
 
-    # Add padding
-    padding = 20
-    width = int(max_x - min_x) + 2 * padding
-    height = int(max_y - min_y) + 2 * padding
+    # 4x resolution scaling
+    scale_factor = 4
 
-    # Create white image
+    padding = 20 * scale_factor
+    width = int((max_x - min_x) * scale_factor) + 2 * padding
+    height = int((max_y - min_y) * scale_factor) + 2 * padding
+
     img = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(img)
 
-    # Draw each ring
     for ring_coords in rings_data:
-        # Transform coordinates to image space
+        # Transform coordinates to image space with 4x scaling
         points = [
-            (int(x - min_x + padding), int(y - min_y + padding)) for x, y in ring_coords
+            (int((x - min_x) * scale_factor + padding), 
+             int((y - min_y) * scale_factor + padding)) 
+            for x, y in ring_coords
         ]
 
-        # Draw the ring as a polygon outline
         if len(points) > 1:
             draw.line(points, fill="black", width=2)
+
+    img = img.rotate(180)
+    img = img.transpose(Image.FLIP_LEFT_RIGHT)
 
     save_image(np.array(img), file_name)
 
@@ -187,7 +191,7 @@ def _visualize_rings(rings_data: list, file_name: str):
 
 
 def _create_peg(
-    x: float, y: float, base_radius=1.25, top_radius=0.75, height=3.5, sections=16
+    x: float, y: float, base_radius=1.25, top_radius=0.75, height=7, sections=16
 ) -> trimesh.Trimesh:
     """Create a single peg at position (x, y) sitting on z=0.
 
