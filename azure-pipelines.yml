@@ -23,11 +23,11 @@ stages:
         steps:
           - checkout: self
 
-          - script: |
-              echo "$(GHCR_TOKEN)" | docker login ghcr.io \
-                --username "$(GHCR_USERNAME)" \
-                --password-stdin
-            displayName: Log in to GHCR
+          # - script: |
+          #     echo "$(GHCR_TOKEN)" | docker login ghcr.io \
+          #       --username "$(GHCR_USERNAME)" \
+          #       --password-stdin
+          #   displayName: Log in to GHCR
 
           - bash: |
               if [ "$(Build.SourceBranchName)" = "main" ]; then
@@ -40,18 +40,36 @@ stages:
             displayName: Determine image tag
             name: tagStep
 
-          - script: |
-              docker build -t $(IMAGE_NAME):$(tagStep.IMAGE_TAG) -t $(IMAGE_NAME):latest .
-            displayName: Build Docker image
+          # - script: |
+          #     docker build -t $(IMAGE_NAME):$(tagStep.IMAGE_TAG) -t $(IMAGE_NAME):latest .
+          #   displayName: Build Docker image
 
-          - script: |
-              docker push $(IMAGE_NAME):$(tagStep.IMAGE_TAG)
-              docker push $(IMAGE_NAME):latest
-            displayName: Push Docker image
+          # - script: |
+          #     docker push $(IMAGE_NAME):$(tagStep.IMAGE_TAG)
+          #     docker push $(IMAGE_NAME):latest
+          #   displayName: Push Docker image
 
-          - script: docker logout ghcr.io
-            displayName: Log out of GHCR
-            condition: always()
+          - task: Docker@2
+            inputs:
+              command: buildAndPush
+              containerRegistry: 'GitHub Docker Registry'
+              repository: '$(IMAGE_NAME)'
+              Dockerfile: '**/Dockerfile'
+              tags: |
+                $(tagStep.IMAGE_TAG)
+                latest
+            displayName: 'Build and Push to GHCR'
+
+          # - task: Docker@2
+          #   inputs:
+          #     containerRegistry: 'GitHub Docker Registry'
+          #     repository: 'iron-on-beads-template-generator'
+          #     command: 'push'
+          #     tags: '$(tagStep.IMAGE_TAG)'
+
+          # - script: docker logout ghcr.io
+          #   displayName: Log out of GHCR
+          #   condition: always()
   
   - stage: DeployDev
     displayName: Deploy to DEV
